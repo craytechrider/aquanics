@@ -189,7 +189,7 @@ export default function AdminSettings() {
   return (
     <div className="min-w-0 space-y-4 pb-6 sm:space-y-6">
       <header>
-        <h1 className="flex items-center gap-2 text-xl font-black tracking-tight text-slate-900 sm:gap-3 sm:text-3xl">
+        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:gap-3 sm:text-3xl">
           <Settings
             size={24}
             className="shrink-0 text-emerald-600 sm:h-8 sm:w-8"
@@ -219,7 +219,7 @@ export default function AdminSettings() {
               className={cn(
                 "inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition sm:min-h-10 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm",
                 selected
-                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-sm"
+                  ? "bg-emerald-700 text-white shadow-sm"
                   : "border border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700",
               )}
             >
@@ -230,7 +230,7 @@ export default function AdminSettings() {
         })}
       </nav>
 
-      <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm sm:rounded-2xl">
+      <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm sm:rounded-2xl">
         {loadingSettings ? (
           <div className="flex min-h-36 flex-col items-center justify-center gap-2">
             <Loader2 size={26} className="animate-spin text-emerald-600" />
@@ -238,13 +238,13 @@ export default function AdminSettings() {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500 px-3 py-3 sm:px-5 sm:py-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 bg-white px-3 py-3 text-emerald-700 sm:px-5 sm:py-4">
               {activeTab === "general" && <Sliders size={17} />}
               {activeTab === "monitoring" && <Settings size={17} />}
               {activeTab === "alerts" && <Bell size={17} />}
               {activeTab === "security" && <Shield size={17} />}
 
-              <h2 className="text-sm font-extrabold text-white sm:text-base">
+              <h2 className="text-sm font-bold text-slate-900 sm:text-base">
                 {TABS.find((tab) => tab.key === activeTab)?.label} Settings
               </h2>
             </div>
@@ -602,7 +602,7 @@ export default function AdminSettings() {
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving || loadingSettings}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-4 py-2.5 text-xs font-bold text-white transition hover:shadow-md disabled:opacity-60 sm:rounded-xl sm:text-sm"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60 sm:rounded-xl sm:text-sm"
               >
                 {saving ? (
                   <Loader2 size={16} className="animate-spin" />

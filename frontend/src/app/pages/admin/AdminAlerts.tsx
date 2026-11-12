@@ -29,13 +29,19 @@ export default function AdminAlerts() {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [pageError, setPageError] = useState("");
 
   const fetchAlerts = () => {
     setLoading(true);
+    setPageError("");
     adminApi
       .getAlerts({ severity: severityFilter })
       .then((res) => setAlerts(res.data))
-      .catch(console.error)
+      .catch((error) => {
+        console.error("Failed to load alerts:", error);
+        setPageError("Unable to load alerts. Please try again.");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -45,13 +51,25 @@ export default function AdminAlerts() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this alert?")) return;
+    setPageError("");
     try {
       await adminApi.deleteAlert(id);
       setAlerts((prev) => prev.filter((a) => a.id !== id));
     } catch {
-      alert("Failed to delete alert");
+      setPageError("Unable to delete this alert. Please try again.");
     }
   };
+
+  const filteredAlerts = alerts.filter((alert) => {
+    const query = search.trim().toLowerCase();
+    return (
+      !query ||
+      [alert.title, alert.message, alert.user, alert.severity]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  });
 
   const severityConfig: Record<string, { icon: typeof AlertTriangle; cls: string; bg: string }> = {
     warning: { icon: AlertTriangle, cls: "text-amber-600", bg: "bg-amber-100" },
@@ -61,27 +79,47 @@ export default function AdminAlerts() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-5 pb-6 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex min-w-0 flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight flex items-center gap-3">
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:gap-3 sm:text-3xl">
             <AlertTriangle
-              className="text-amber-500"
-              size={32}
-              strokeWidth={2.5}
+              className="shrink-0 text-emerald-600"
+              size={25}
             />
             Alert Management
           </h1>
-          <p className="text-slate-500 font-medium mt-1">
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
             View and manage system-wide alerts
           </p>
         </div>
-        <div className="bg-amber-50/50 border border-amber-100 text-amber-700 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
+        <div className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 sm:self-auto">
           <AlertTriangle size={18} />
           {alerts.length} Alerts
         </div>
       </div>
+
+      <div className="relative w-full max-w-md">
+        <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search alerts..."
+          aria-label="Search alerts"
+          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+        />
+      </div>
+
+      {pageError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+          <span>{pageError}</span>
+          <button type="button" onClick={fetchAlerts} className="font-semibold underline">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Severity filter */}
       <div className="flex flex-wrap gap-2">
@@ -96,9 +134,9 @@ export default function AdminAlerts() {
             key={f.key}
             onClick={() => setSeverityFilter(f.key)}
             className={cn(
-              "inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold border transition-all",
+              "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm",
               severityFilter === f.key
-                ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200"
+                ? "border-emerald-700 bg-emerald-700 text-white"
                 : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700"
             )}
           >
@@ -114,14 +152,14 @@ export default function AdminAlerts() {
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       ) : (
-        <div className="space-y-4">
-          {alerts.map((alert) => {
+        <div className="space-y-3">
+          {filteredAlerts.map((alert) => {
             const cfg = severityConfig[alert.severity] || severityConfig.info;
             const Icon = cfg.icon;
             return (
               <div
                 key={alert.id}
-                className="bg-white rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/40 p-6 flex gap-4 hover:shadow-xl transition-all duration-300 group"
+                className="group flex min-w-0 gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-200 hover:shadow-md sm:gap-4 sm:p-5"
               >
                 <div
                   className={cn(
@@ -135,7 +173,7 @@ export default function AdminAlerts() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="font-display font-bold text-slate-800">
+                    <h3 className="break-words font-semibold text-slate-900">
                       {alert.title}
                     </h3>
                     <span
@@ -153,7 +191,7 @@ export default function AdminAlerts() {
                       {alert.severity}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 leading-relaxed mb-2">
+                  <p className="mb-2 break-words text-sm leading-relaxed text-slate-600">
                     {alert.message}
                   </p>
                   <div className="flex items-center gap-4 text-xs text-slate-400 font-medium">
@@ -167,8 +205,9 @@ export default function AdminAlerts() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => handleDelete(alert.id)}
-                  className="self-center p-2.5 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                  className="self-center rounded-xl p-2.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                   title="Delete alert"
                 >
                   <Trash2 size={18} />
@@ -176,17 +215,17 @@ export default function AdminAlerts() {
               </div>
             );
           })}
-          {alerts.length === 0 && (
+          {filteredAlerts.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="h-20 w-20 rounded-full bg-slate-100 flex items-center justify-center mb-4">
                 <CheckCircle2 size={36} className="text-emerald-400" />
               </div>
-              <h3 className="font-display font-bold text-slate-700 text-lg mb-1">
+              <h3 className="mb-1 text-lg font-semibold text-slate-700">
                 No alerts found
               </h3>
               <p className="text-slate-500 text-sm">
-                {severityFilter
-                  ? "No alerts match the selected filter."
+                {search || severityFilter
+                  ? "No alerts match the current search or filter."
                   : "Everything is running smoothly!"}
               </p>
             </div>

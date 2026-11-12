@@ -3,20 +3,22 @@ import { Link } from "react-router";
 import {
   BookOpen,
   Users,
+  Cpu,
   Settings,
   Activity,
   Shield,
   LayoutDashboard,
   Bell,
+  AlertTriangle,
   Database,
   HelpCircle,
   ChevronDown,
   ChevronRight,
   ArrowRight,
   Leaf,
+  Thermometer,
   Search,
   ExternalLink,
-  CircleCheck,
 } from "lucide-react";
 
 interface GuideSection {
@@ -126,6 +128,24 @@ const QUICK_LINKS = [
     icon: Users,
   },
   {
+    label: "Manage Devices",
+    description: "Connected equipment",
+    path: "/admin/devices",
+    icon: Cpu,
+  },
+  {
+    label: "Manage Sensors",
+    description: "Readings and thresholds",
+    path: "/admin/sensors",
+    icon: Thermometer,
+  },
+  {
+    label: "Manage Alerts",
+    description: "System notifications",
+    path: "/admin/alerts",
+    icon: AlertTriangle,
+  },
+  {
     label: "System Settings",
     description: "Configuration",
     path: "/admin/settings",
@@ -183,42 +203,26 @@ export default function AdminGuide() {
   return (
     <div className="min-w-0 space-y-6 pb-8 sm:space-y-8">
       {/* Page heading */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#123b2d] via-emerald-800 to-teal-700 p-5 text-white shadow-xl shadow-emerald-950/10 sm:p-8 lg:p-10">
-        <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full border-[28px] border-white/[0.07] sm:h-64 sm:w-64 sm:border-[38px]" />
-        <div className="pointer-events-none absolute -bottom-16 right-1/4 h-36 w-36 rounded-full bg-emerald-300/10 blur-3xl" />
-
-        <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-emerald-100">
-              <Leaf size={15} />
-              AQUANICS ADMINISTRATION
-            </div>
-
-            <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight sm:text-3xl lg:text-4xl">
-              <BookOpen className="shrink-0 text-emerald-300" size={30} />
-              Admin Guide
-            </h1>
-
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-50/75 sm:text-base sm:leading-7">
-              Your reference for managing accounts, monitoring system activity,
-              configuring settings, and maintaining AQUANICS.
-            </p>
+      <section className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="min-w-0">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
+            <Leaf size={15} className="text-emerald-700" />
+            ADMINISTRATION
           </div>
 
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center self-start rounded-2xl border border-white/15 bg-white/10 text-emerald-200 sm:h-20 sm:w-20 sm:self-center">
-            <Shield size={36} />
-          </div>
+          <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <BookOpen className="shrink-0 text-emerald-600" size={28} />
+            Admin Guide
+          </h1>
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+            Your reference for managing accounts, monitoring system activity,
+            configuring settings, and maintaining AQUANICS.
+          </p>
         </div>
 
-        <div className="relative z-10 mt-6 flex flex-wrap gap-2 border-t border-white/15 pt-5">
-          <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/90">
-            <CircleCheck size={15} className="text-emerald-300" />
-            Administration reference
-          </span>
-          <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/90">
-            <BookOpen size={15} className="text-emerald-300" />
-            {GUIDE_SECTIONS.length} Guide Sections
-          </span>
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center self-start rounded-2xl bg-emerald-50 text-emerald-700 sm:h-20 sm:w-20 sm:self-center">
+          <Shield size={36} />
         </div>
       </section>
 
@@ -241,7 +245,7 @@ export default function AdminGuide() {
               <Link
                 key={item.path}
                 to={item.path}
-                className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-950/5 sm:p-5"
+                className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:border-emerald-200 hover:shadow-md sm:p-5"
               >
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 transition group-hover:bg-emerald-100">
                   <Icon size={21} />

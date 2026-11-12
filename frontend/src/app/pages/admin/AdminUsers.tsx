@@ -207,7 +207,7 @@ export default function AdminUsers() {
     <div className="min-w-0 space-y-4 pb-6 sm:space-y-6">
       <header className="flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-xl font-black tracking-tight text-slate-900 sm:gap-3 sm:text-3xl">
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:gap-3 sm:text-3xl">
             <Users
               size={24}
               className="shrink-0 text-emerald-600 sm:h-8 sm:w-8"
@@ -222,7 +222,7 @@ export default function AdminUsers() {
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-2.5 py-2 text-xs font-bold text-white shadow-sm transition hover:shadow-md sm:min-h-11 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm"
+          className="inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-2.5 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800 sm:min-h-11 sm:gap-2 sm:rounded-xl sm:px-4 sm:text-sm"
         >
           <Plus size={16} />
           <span className="sm:hidden">Add User</span>
@@ -250,7 +250,7 @@ export default function AdminUsers() {
           return (
             <article
               key={stat.title}
-              className="min-w-0 rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm transition hover:shadow-md sm:rounded-2xl sm:p-5"
+              className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-emerald-200 hover:shadow-md sm:rounded-2xl sm:p-5"
             >
               <div className="flex items-start justify-between gap-1.5">
                 <p className="min-w-0 text-[11px] font-semibold leading-tight text-slate-500 sm:text-sm">
@@ -277,8 +277,8 @@ export default function AdminUsers() {
       </section>
 
       <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm sm:rounded-2xl">
-        <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500 px-3 py-3 sm:px-5 sm:py-4">
-          <h2 className="flex items-center gap-2 text-sm font-extrabold text-white sm:text-base">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-white px-3 py-3 sm:px-5 sm:py-4">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900 sm:text-base">
             <Users size={17} />
             All Users
           </h2>
@@ -287,7 +287,7 @@ export default function AdminUsers() {
             onClick={() => void fetchUsers()}
             disabled={loading}
             aria-label="Refresh users"
-            className="rounded-lg p-2 text-white transition hover:bg-white/20 disabled:opacity-50"
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-emerald-700 disabled:opacity-50"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           </button>
@@ -314,7 +314,7 @@ export default function AdminUsers() {
               {users.map((user) => (
                 <article key={user.id} className="min-w-0 p-3">
                   <div className="flex min-w-0 items-start gap-2.5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 text-[10px] font-black text-white">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">
                       {getInitials(user.name)}
                     </div>
 
@@ -405,7 +405,7 @@ export default function AdminUsers() {
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 text-[10px] font-bold text-white">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-800">
                             {getInitials(user.name)}
                           </div>
                           <span className="text-xs font-bold text-slate-800">
@@ -605,7 +605,7 @@ export default function AdminUsers() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 px-3 py-2 text-xs font-bold text-white transition hover:shadow-md disabled:opacity-60 sm:rounded-xl sm:text-sm"
+                className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60 sm:rounded-xl sm:text-sm"
               >
                 {saving ? (
                   <Loader2 size={16} className="animate-spin" />

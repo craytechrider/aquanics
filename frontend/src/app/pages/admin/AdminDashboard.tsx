@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   Users,
-  Crown,
   Cpu,
   HeartPulse,
   TrendingUp,
@@ -10,7 +9,6 @@ import {
   Settings,
   Activity,
   Shield,
-  Info,
   Loader2,
   Database,
   Bell,
@@ -75,6 +73,30 @@ const FEATURE_CARDS = [
     icon: Activity,
     iconStyle: "bg-violet-50 text-violet-700",
   },
+  {
+    title: "Device Management",
+    description: "Monitor and control connected system devices.",
+    action: "Manage Devices",
+    path: "/admin/devices",
+    icon: Cpu,
+    iconStyle: "bg-cyan-50 text-cyan-700",
+  },
+  {
+    title: "Sensor Management",
+    description: "Review live readings and sensor status.",
+    action: "View Sensors",
+    path: "/admin/sensors",
+    icon: Database,
+    iconStyle: "bg-blue-50 text-blue-700",
+  },
+  {
+    title: "Alert Management",
+    description: "Review and manage system alerts.",
+    action: "View Alerts",
+    path: "/admin/alerts",
+    icon: Bell,
+    iconStyle: "bg-amber-50 text-amber-700",
+  },
 ];
 
 function formatNumber(value: number | undefined): string {
@@ -126,29 +148,6 @@ export default function AdminDashboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    setErrorMessage("");
-
-    try {
-      const response = await adminApi.getDashboard();
-
-      if (!response?.data) {
-        throw new Error("The server returned an empty dashboard response.");
-      }
-
-      setData(response.data as DashboardData);
-    } catch (error) {
-      console.error("Failed to load admin dashboard:", error);
-
-      setErrorMessage(
-        "Unable to load dashboard information. Check your connection and try again.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     let mounted = true;
 
@@ -193,6 +192,11 @@ export default function AdminDashboard() {
   const recentAlerts = data?.recentAlerts ?? [];
 
   const adminUsers = roleDistribution.Admin ?? roleDistribution.admin ?? 0;
+  const farmerUsers = Object.entries(roleDistribution).reduce(
+    (total, [role, count]) =>
+      ["farmer", "owner"].includes(role.toLowerCase()) ? total + count : total,
+    0,
+  );
 
   const systemHealth =
     typeof stats?.systemHealth === "number" &&
@@ -209,11 +213,18 @@ export default function AdminDashboard() {
       iconStyle: "bg-emerald-50 text-emerald-700",
     },
     {
+      title: "Farmers / Owners",
+      value: formatNumber(farmerUsers),
+      subtitle: "Registered operator accounts",
+      icon: Users,
+      iconStyle: "bg-cyan-50 text-cyan-700",
+    },
+    {
       title: "Admin Users",
       value: formatNumber(adminUsers),
       subtitle: "Administrator accounts",
-      icon: Crown,
-      iconStyle: "bg-amber-50 text-amber-700",
+      icon: Shield,
+      iconStyle: "bg-violet-50 text-violet-700",
     },
     {
       title: "Active Devices",
@@ -262,59 +273,43 @@ export default function AdminDashboard() {
   return (
     <div className="min-w-0 space-y-6 pb-8 sm:space-y-8">
       {/* Dashboard header */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#123b2d] via-emerald-800 to-teal-700 p-5 text-white shadow-xl shadow-emerald-950/10 sm:p-7 lg:p-9">
-        <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full border-[28px] border-white/[0.07] sm:h-64 sm:w-64 sm:border-[38px]" />
-        <div className="pointer-events-none absolute -bottom-16 right-1/4 h-36 w-36 rounded-full bg-emerald-300/10 blur-3xl" />
-
-        <div className="relative z-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-          <div className="min-w-0">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-emerald-100">
-              <Shield size={15} />
-              ADMIN CONTROL PANEL
-            </div>
-
-            <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight sm:text-3xl lg:text-4xl">
-              <TrendingUp className="shrink-0 text-emerald-300" size={32} />
-              Admin Dashboard
-            </h1>
-
-            <p className="mt-3 text-sm leading-6 text-emerald-50/75 sm:text-base">
-              Welcome back, {user?.name || "Admin User"}! Here is your AQUANICS
-              system overview.
-            </p>
+      <section className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
+        <div className="min-w-0">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
+            <Shield size={15} className="text-emerald-700" />
+            ADMINISTRATION
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={loading}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
-              Refresh
-            </button>
+          <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <TrendingUp className="shrink-0 text-emerald-600" size={28} />
+            Admin Dashboard
+          </h1>
 
-            <button
-              type="button"
-              onClick={() => navigate("/admin/guide")}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-300 px-4 py-3 text-sm font-extrabold text-[#123b2d] transition hover:bg-emerald-200"
-            >
-              <BookOpen size={17} />
-              Admin Guide
-            </button>
-          </div>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Welcome back, {user?.name || "Admin User"}! Here is your AQUANICS
+            system overview.
+          </p>
         </div>
 
-        <div className="relative z-10 mt-6 flex flex-wrap gap-2 border-t border-white/15 pt-5">
-          <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/90">
-            <Activity size={15} className="text-emerald-300" />
-            System overview
-          </span>
-          <span className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white/90">
-            <Shield size={15} className="text-emerald-300" />
-            Administrator access
-          </span>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/admin/guide")}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          >
+            <BookOpen size={17} />
+            Admin Guide
+          </button>
         </div>
       </section>
 
@@ -383,14 +378,14 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {statCards.map((card) => {
                 const Icon = card.icon;
 
                 return (
                   <article
                     key={card.title}
-                    className="group min-w-0 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-950/5 sm:p-6"
+                    className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:border-emerald-200 hover:shadow-md sm:p-6"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -413,9 +408,6 @@ export default function AdminDashboard() {
                       {card.subtitle}
                     </p>
 
-                    <div className="mt-5 h-1 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 opacity-70 transition-all group-hover:w-full" />
-                    </div>
                   </article>
                 );
               })}
@@ -430,7 +422,7 @@ export default function AdminDashboard() {
               return (
                 <div
                   key={card.title}
-                  className="flex min-w-0 items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5"
+                  className="flex min-w-0 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
                 >
                   <div
                     className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${card.style}`}
@@ -451,7 +443,7 @@ export default function AdminDashboard() {
           </section>
 
           {/* Role distribution */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-5">
               <h2 className="text-lg font-extrabold text-slate-900">
                 User Role Distribution
@@ -500,14 +492,14 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {FEATURE_CARDS.map((card) => {
                 const Icon = card.icon;
 
                 return (
                   <article
                     key={card.title}
-                    className="group flex min-w-0 flex-col rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-950/5 sm:p-6"
+                    className="group flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:border-emerald-200 hover:shadow-md sm:p-6"
                   >
                     <div
                       className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.iconStyle}`}
@@ -526,7 +518,7 @@ export default function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => navigate(card.path)}
-                      className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-700 px-4 py-3 text-sm font-bold text-white transition hover:from-emerald-800 hover:to-teal-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+                      className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
                     >
                       {card.action}
                       <ArrowRight
@@ -541,10 +533,10 @@ export default function AdminDashboard() {
           </section>
 
           {/* Recent alerts */}
-          <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-cyan-50 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-100 bg-white px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-800 shadow-sm">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                   <Bell size={21} />
                 </div>
                 <div>

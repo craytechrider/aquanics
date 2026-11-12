@@ -33,13 +33,19 @@ export default function AdminDevices() {
   const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const fetchDevices = () => {
     setLoading(true);
+    setPageError("");
     adminApi
       .getDevices({ search })
       .then((res) => setDevices(res.data))
-      .catch(console.error)
+      .catch((error) => {
+        console.error("Failed to load devices:", error);
+        setPageError("Unable to load devices. Please try again.");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -48,39 +54,41 @@ export default function AdminDevices() {
   }, [search]);
 
   const handleToggle = async (id: number) => {
+    setActionError("");
     try {
       const res = await adminApi.toggleDevice(id);
       setDevices((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, isOn: res.data.isOn } : d))
+        prev.map((d) => (d.id === id ? { ...d, isOn: res.data.isOn } : d)),
       );
     } catch (err) {
-      console.error("Toggle failed", err);
+      console.error("Failed to toggle device:", err);
+      setActionError("Unable to update the device. Please try again.");
     }
   };
 
   const onlineCount = devices.filter((d) => d.isOn).length;
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-5 pb-6 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex min-w-0 flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight flex items-center gap-3">
-            <Cpu className="text-cyan-600" size={32} strokeWidth={2.5} />
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:gap-3 sm:text-3xl">
+            <Cpu className="shrink-0 text-emerald-600" size={25} />
             Device Management
           </h1>
-          <p className="text-slate-500 font-medium mt-1">
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
             Control and monitor all system devices
           </p>
         </div>
-        <div className="bg-cyan-50/50 border border-cyan-100 text-cyan-700 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
+        <div className="inline-flex items-center gap-2 self-start rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 sm:self-auto">
           <Power size={18} />
           {onlineCount}/{devices.length} Online
         </div>
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
+      <div className="relative w-full max-w-md">
         <Search
           size={20}
           className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -90,27 +98,37 @@ export default function AdminDevices() {
           placeholder="Search devices..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm"
+          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
         />
       </div>
+      {(pageError || actionError) && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+          <span>{actionError || pageError}</span>
+          {pageError && (
+            <button type="button" onClick={fetchDevices} className="font-semibold underline">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Device Grid */}
       {loading ? (
-        <div className="flex items-center justify-center h-48">
+        <div className="flex min-h-48 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {devices.map((d) => {
             const IconComp = DEVICE_ICONS[d.key] || Cpu;
             return (
               <div
                 key={d.id}
                 className={cn(
-                  "bg-white rounded-2xl border p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg relative overflow-hidden group",
+                  "relative overflow-hidden rounded-2xl border bg-white p-5 shadow-sm transition hover:shadow-md",
                   d.isOn
-                    ? "border-emerald-100 shadow-lg shadow-emerald-100/40"
-                    : "border-slate-100 shadow-lg shadow-slate-200/40"
+                    ? "border-emerald-200"
+                    : "border-slate-200"
                 )}
               >
                 {/* Status indicator */}
@@ -126,23 +144,23 @@ export default function AdminDevices() {
                 <div className="flex items-center gap-4 mb-5">
                   <div
                     className={cn(
-                      "p-3 rounded-xl shadow-md text-white transition-all",
+                      "rounded-xl p-3 transition",
                       d.isOn
-                        ? "bg-gradient-to-br from-emerald-500 to-cyan-500 shadow-emerald-200"
-                        : "bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-200"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-500"
                     )}
                   >
                     <IconComp size={22} />
                   </div>
                   <div>
-                    <h3 className="font-display font-bold text-slate-800">
+                    <h3 className="font-semibold text-slate-900">
                       {d.name}
                     </h3>
                     <p className="text-xs text-slate-400">owned by {d.user}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <div className="space-y-1">
                     <p className="text-xs text-slate-500 font-medium">
                       Mode:{" "}
@@ -178,7 +196,7 @@ export default function AdminDevices() {
             );
           })}
           {devices.length === 0 && (
-            <div className="col-span-full text-center py-12 text-slate-400">
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-12 text-center text-sm text-slate-500">
               No devices found
             </div>
           )}

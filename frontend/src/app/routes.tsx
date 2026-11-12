@@ -21,6 +21,9 @@ import GrowthMeasurements from "./pages/growth/GrowthMeasurements";
 
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminDevices from "./pages/admin/AdminDevices";
+import AdminSensors from "./pages/admin/AdminSensors";
+import AdminAlerts from "./pages/admin/AdminAlerts";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminActivityLogs from "./pages/admin/AdminActivityLogs";
 import AdminGuide from "./pages/admin/AdminGuide";
@@ -134,6 +137,18 @@ export const router = createBrowserRouter([
                   {
                     path: "admin/users",
                     element: <AdminUsers />,
+                  },
+                  {
+                    path: "admin/devices",
+                    element: <AdminDevices />,
+                  },
+                  {
+                    path: "admin/sensors",
+                    element: <AdminSensors />,
+                  },
+                  {
+                    path: "admin/alerts",
+                    element: <AdminAlerts />,
                   },
                   {
                     path: "admin/settings",

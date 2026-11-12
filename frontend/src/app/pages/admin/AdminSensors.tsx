@@ -37,6 +37,7 @@ export default function AdminSensors() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [pageError, setPageError] = useState("");
 
   // Edit modal
   const [showModal, setShowModal] = useState(false);
@@ -48,10 +49,14 @@ export default function AdminSensors() {
 
   const fetchSensors = () => {
     setLoading(true);
+    setPageError("");
     adminApi
       .getSensors({ search })
       .then((res) => setSensors(res.data))
-      .catch(console.error)
+      .catch((error) => {
+        console.error("Failed to load sensors:", error);
+        setPageError("Unable to load sensors. Please try again.");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -116,26 +121,26 @@ export default function AdminSensors() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-5 pb-6 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex min-w-0 flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight flex items-center gap-3">
-            <Thermometer className="text-emerald-600" size={32} strokeWidth={2.5} />
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-slate-900 sm:gap-3 sm:text-3xl">
+            <Thermometer className="shrink-0 text-emerald-600" size={25} />
             Sensor Management
           </h1>
-          <p className="text-slate-500 font-medium mt-1">
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
             Monitor and configure sensors across all users
           </p>
         </div>
-        <div className="bg-emerald-50/50 border border-emerald-100 text-emerald-700 px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm">
+        <div className="inline-flex items-center gap-2 self-start rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 sm:self-auto">
           <Thermometer size={18} />
           {sensors.length} Sensors
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         <div className="relative flex-1 max-w-md">
           <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -143,25 +148,27 @@ export default function AdminSensors() {
             placeholder="Search sensors..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent shadow-sm"
+            className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1">
           {[
             { value: "", label: "All" },
             { value: "normal", label: "Stable" },
             { value: "warning", label: "Warning" },
             { value: "critical", label: "Critical" },
             { value: "no_data", label: "No Data" },
+            { value: "offline", label: "Offline" },
             { value: "unconfigured", label: "Unconfigured" },
           ].map(({ value, label }) => (
             <button
               key={value}
+              type="button"
               onClick={() => setStatusFilter(value)}
               className={cn(
-                "px-4 py-2.5 rounded-xl text-sm font-bold border transition-all capitalize",
+                "shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-2.5 sm:text-sm",
                 statusFilter === value
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200"
+                  ? "border-emerald-700 bg-emerald-700 text-white"
                   : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700"
               )}
             >
@@ -170,6 +177,14 @@ export default function AdminSensors() {
           ))}
         </div>
       </div>
+      {pageError && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+          <span>{pageError}</span>
+          <button type="button" onClick={fetchSensors} className="font-semibold underline">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -177,9 +192,9 @@ export default function AdminSensors() {
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-100">
                   <th className="text-left py-4 px-6 text-slate-500 font-bold text-xs uppercase tracking-wider">Sensor</th>
@@ -207,7 +222,11 @@ export default function AdminSensors() {
                       </div>
                     </td>
                     <td className="py-4 px-6">
-                      <span className={cn("text-lg font-display font-bold", styles.value)}>{s.value ?? "--"}</span>
+                      <span className={cn("text-lg font-semibold", styles.value)}>
+                        {typeof s.value === "number" && Number.isFinite(s.value)
+                          ? s.value
+                          : "--"}
+                      </span>
                       <span className="text-slate-400 ml-1 text-xs">{s.unit}</span>
                     </td>
                     <td className="py-4 px-6">
@@ -257,14 +276,14 @@ export default function AdminSensors() {
 
       {/* ── Edit Modal ─────────────────────────────────────── */}
       {showModal && editing && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 p-8">
-            <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto p-4">
+          <button type="button" aria-label="Close sensor editor" className="absolute inset-0 bg-slate-900/50" onClick={() => setShowModal(false)} />
+          <div className="relative my-auto w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7">
+            <button type="button" onClick={() => setShowModal(false)} aria-label="Close" className="absolute right-4 top-4 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
               <X size={20} />
             </button>
 
-            <h2 className="text-xl font-display font-bold text-slate-900 mb-6">Edit Sensor</h2>
+            <h2 className="mb-6 text-xl font-bold text-slate-900">Edit Sensor</h2>
 
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium">{error}</div>
@@ -277,7 +296,7 @@ export default function AdminSensors() {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
               <div>
@@ -287,7 +306,7 @@ export default function AdminSensors() {
                   step="0.01"
                   value={form.value}
                   onChange={(e) => setForm({ ...form, value: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
               <div>
@@ -295,7 +314,7 @@ export default function AdminSensors() {
                 <select
                   value={form.trend}
                   onChange={(e) => setForm({ ...form, trend: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 >
                   <option value="up">Up</option>
                   <option value="down">Down</option>
@@ -314,7 +333,7 @@ export default function AdminSensors() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-cyan-600 text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-70"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-70"
               >
                 {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                 Save Changes
