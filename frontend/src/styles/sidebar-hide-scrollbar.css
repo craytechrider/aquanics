@@ -1,0 +1,8 @@
+/* Hide scrollbar for sidebar navigation */
+.sidebar-nav-hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+.sidebar-nav-hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

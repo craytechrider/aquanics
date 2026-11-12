@@ -1,0 +1,63 @@
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
+
+/* Animated background pan for auth pages */
+@keyframes bg-pan {
+  0% {
+    transform: scale(1.3) translate(0%, 0%);
+  }
+  25% {
+    transform: scale(1.3) translate(-3%, -2%);
+  }
+  50% {
+    transform: scale(1.3) translate(-1%, 3%);
+  }
+  75% {
+    transform: scale(1.3) translate(2%, -1%);
+  }
+  100% {
+    transform: scale(1.3) translate(0%, 0%);
+  }
+}
+
+@keyframes bg-overlay-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-bg-pan {
+  animation: bg-pan 25s ease-in-out infinite;
+}
+
+.animate-bg-overlay-shift {
+  background-size: 200% 200%;
+  animation: bg-overlay-shift 15s ease-in-out infinite;
+}
+
+/* Beautiful gradient text for auth headings */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #ffffff 0%, #a7f3d0 40%, #6ee7b7 60%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-subtle {
+  background: linear-gradient(135deg, #e2e8f0 0%, #a7f3d0 50%, #67e8f9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
