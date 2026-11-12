@@ -14,7 +14,6 @@ import { adminApi } from "../../lib/api";
 
 const TABS = [
   { key: "general", label: "General", icon: Sliders },
-  { key: "monitoring", label: "Monitoring", icon: Settings },
   { key: "alerts", label: "Alerts", icon: Bell },
   { key: "security", label: "Security", icon: Shield },
 ];
@@ -35,15 +34,6 @@ const defaultGeneral = {
   enableDataLogging: true,
 };
 
-const defaultMonitoring = {
-  sensorInterval: "30",
-  dataRetention: "90",
-  autoCalibrate: true,
-  temperatureUnit: "Celsius",
-  phThreshold: "7.0",
-  doThreshold: "5.0",
-};
-
 const defaultAlerts = {
   emailAlerts: true,
   smsAlerts: false,
@@ -62,7 +52,7 @@ const defaultSecurity = {
   auditLogging: true,
 };
 
-type SettingsTab = "general" | "monitoring" | "alerts" | "security";
+type SettingsTab = "general" | "alerts" | "security";
 
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
@@ -72,7 +62,6 @@ export default function AdminSettings() {
   const [error, setError] = useState("");
 
   const [general, setGeneral] = useState(defaultGeneral);
-  const [monitoring, setMonitoring] = useState(defaultMonitoring);
   const [alerts, setAlerts] = useState(defaultAlerts);
   const [security, setSecurity] = useState(defaultSecurity);
 
@@ -95,16 +84,6 @@ export default function AdminSettings() {
             enableDataLogging:
               data.general.enableDataLogging === true ||
               data.general.enableDataLogging === "true",
-          });
-        }
-
-        if (data.monitoring) {
-          setMonitoring({
-            ...defaultMonitoring,
-            ...data.monitoring,
-            autoCalibrate:
-              data.monitoring.autoCalibrate === true ||
-              data.monitoring.autoCalibrate === "true",
           });
         }
 
@@ -161,7 +140,6 @@ export default function AdminSettings() {
 
     const settingsMap = {
       general,
-      monitoring,
       alerts,
       security,
     };
@@ -197,7 +175,7 @@ export default function AdminSettings() {
           System Settings
         </h1>
         <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
-          Configure system parameters and aquanics monitoring settings.
+          Configure general preferences, alert delivery, and security options.
         </p>
       </header>
 
@@ -240,7 +218,6 @@ export default function AdminSettings() {
           <>
             <div className="flex items-center gap-2 border-b border-slate-100 bg-white px-3 py-3 text-emerald-700 sm:px-5 sm:py-4">
               {activeTab === "general" && <Sliders size={17} />}
-              {activeTab === "monitoring" && <Settings size={17} />}
               {activeTab === "alerts" && <Bell size={17} />}
               {activeTab === "security" && <Shield size={17} />}
 
@@ -330,98 +307,6 @@ export default function AdminSettings() {
                       checked={general.enableDataLogging}
                       onChange={(checked) =>
                         setGeneral({ ...general, enableDataLogging: checked })
-                      }
-                    />
-                  </div>
-                </>
-              )}
-
-              {activeTab === "monitoring" && (
-                <>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Sensor Reading Interval (seconds)">
-                      <input
-                        type="number"
-                        min="1"
-                        value={monitoring.sensorInterval}
-                        onChange={(e) =>
-                          setMonitoring({
-                            ...monitoring,
-                            sensorInterval: e.target.value,
-                          })
-                        }
-                        className={inputClass}
-                      />
-                    </Field>
-
-                    <Field label="Data Retention (days)">
-                      <input
-                        type="number"
-                        min="1"
-                        value={monitoring.dataRetention}
-                        onChange={(e) =>
-                          setMonitoring({
-                            ...monitoring,
-                            dataRetention: e.target.value,
-                          })
-                        }
-                        className={inputClass}
-                      />
-                    </Field>
-
-                    <Field label="pH Threshold">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={monitoring.phThreshold}
-                        onChange={(e) =>
-                          setMonitoring({
-                            ...monitoring,
-                            phThreshold: e.target.value,
-                          })
-                        }
-                        className={inputClass}
-                      />
-                    </Field>
-
-                    <Field label="Dissolved Oxygen Threshold (mg/L)">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={monitoring.doThreshold}
-                        onChange={(e) =>
-                          setMonitoring({
-                            ...monitoring,
-                            doThreshold: e.target.value,
-                          })
-                        }
-                        className={inputClass}
-                      />
-                    </Field>
-
-                    <Field label="Temperature Unit">
-                      <select
-                        value={monitoring.temperatureUnit}
-                        onChange={(e) =>
-                          setMonitoring({
-                            ...monitoring,
-                            temperatureUnit: e.target.value,
-                          })
-                        }
-                        className={inputClass}
-                      >
-                        <option value="Celsius">Celsius</option>
-                        <option value="Fahrenheit">Fahrenheit</option>
-                      </select>
-                    </Field>
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3 sm:p-4">
-                    <Toggle
-                      label="Auto-Calibrate Sensors"
-                      checked={monitoring.autoCalibrate}
-                      onChange={(checked) =>
-                        setMonitoring({ ...monitoring, autoCalibrate: checked })
                       }
                     />
                   </div>

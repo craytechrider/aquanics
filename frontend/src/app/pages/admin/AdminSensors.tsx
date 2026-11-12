@@ -28,8 +28,6 @@ interface SensorRow {
   unit: string;
   status: string;
   trend: string;
-  user: string;
-  userId: number;
 }
 
 export default function AdminSensors() {
@@ -130,7 +128,7 @@ export default function AdminSensors() {
             Sensor Management
           </h1>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-            Monitor and configure sensors across all users
+            Review measurements from the deployed sensor setup
           </p>
         </div>
         <div className="inline-flex items-center gap-2 self-start rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 sm:self-auto">
@@ -194,15 +192,14 @@ export default function AdminSensors() {
       ) : (
         <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-100">
-                  <th className="text-left py-4 px-6 text-slate-500 font-bold text-xs uppercase tracking-wider">Sensor</th>
-                  <th className="text-left py-4 px-6 text-slate-500 font-bold text-xs uppercase tracking-wider">Value</th>
-                  <th className="text-left py-4 px-6 text-slate-500 font-bold text-xs uppercase tracking-wider">Status</th>
-                  <th className="text-left py-4 px-6 text-slate-500 font-bold text-xs uppercase tracking-wider">Trend</th>
-                  <th className="text-left py-4 px-6 text-slate-500 font-bold text-xs uppercase tracking-wider">Owner</th>
-                  <th className="text-right py-4 px-6 text-slate-500 font-bold text-xs uppercase tracking-wider">Actions</th>
+                  <th className="whitespace-nowrap px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Sensor</th>
+                  <th className="whitespace-nowrap px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Value</th>
+                  <th className="whitespace-nowrap px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
+                  <th className="whitespace-nowrap px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Trend</th>
+                  <th className="whitespace-nowrap px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -210,7 +207,7 @@ export default function AdminSensors() {
                   const styles = SENSOR_STATUS_PRESENTATION[s.calculatedStatus];
                   return (
                   <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-6">
+                    <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className={cn("p-2 rounded-xl", styles.icon)}>
                           <Thermometer size={18} />
@@ -221,7 +218,7 @@ export default function AdminSensors() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="px-4 py-4">
                       <span className={cn("text-lg font-semibold", styles.value)}>
                         {typeof s.value === "number" && Number.isFinite(s.value)
                           ? s.value
@@ -229,7 +226,7 @@ export default function AdminSensors() {
                       </span>
                       <span className="text-slate-400 ml-1 text-xs">{s.unit}</span>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="px-4 py-4">
                       <span className={cn(
                         "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border capitalize",
                         styles.badge,
@@ -238,7 +235,7 @@ export default function AdminSensors() {
                         {styles.label}
                       </span>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="px-4 py-4">
                       <span className={cn(
                         "text-sm font-medium capitalize",
                         s.trend === "up" ? "text-emerald-600" : s.trend === "down" ? "text-red-500" : "text-slate-400"
@@ -246,8 +243,7 @@ export default function AdminSensors() {
                         {s.trend === "up" ? "↑" : s.trend === "down" ? "↓" : "→"} {s.trend}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-slate-600">{s.user}</td>
-                    <td className="py-4 px-6">
+                    <td className="px-4 py-4">
                       <div className="flex items-center justify-end">
                         <button
                           onClick={() => openEdit(s)}
@@ -263,7 +259,7 @@ export default function AdminSensors() {
                 })}
                 {filteredSensors.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <td colSpan={5} className="py-12 text-center text-slate-400">
                       No sensors match this filter
                     </td>
                   </tr>

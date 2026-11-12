@@ -4,12 +4,14 @@ import {
   Search,
   Trash2,
   Loader2,
-  Users,
   Clock,
   CheckCircle2,
   XCircle,
   Info,
   Filter,
+  Tag,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { adminApi } from "../../lib/api";
 import { cn } from "../../lib/utils";
@@ -18,9 +20,8 @@ interface AlertRow {
   id: number;
   title: string;
   message: string;
+  type: string;
   severity: string;
-  user: string;
-  userId: number;
   time: string;
   read: boolean;
 }
@@ -64,7 +65,7 @@ export default function AdminAlerts() {
     const query = search.trim().toLowerCase();
     return (
       !query ||
-      [alert.title, alert.message, alert.user, alert.severity]
+      [alert.title, alert.message, alert.type, alert.severity]
         .join(" ")
         .toLowerCase()
         .includes(query)
@@ -154,7 +155,8 @@ export default function AdminAlerts() {
       ) : (
         <div className="space-y-3">
           {filteredAlerts.map((alert) => {
-            const cfg = severityConfig[alert.severity] || severityConfig.info;
+            const severity = alert.severity.toLowerCase();
+            const cfg = severityConfig[severity] || severityConfig.info;
             const Icon = cfg.icon;
             return (
               <div
@@ -179,27 +181,38 @@ export default function AdminAlerts() {
                     <span
                       className={cn(
                         "px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase border",
-                        alert.severity === "critical"
+                        severity === "critical"
                           ? "bg-red-50 text-red-600 border-red-100"
-                          : alert.severity === "warning"
+                          : severity === "warning"
                           ? "bg-amber-50 text-amber-600 border-amber-100"
-                          : alert.severity === "success"
+                          : severity === "success"
                           ? "bg-emerald-50 text-emerald-600 border-emerald-100"
                           : "bg-blue-50 text-blue-600 border-blue-100"
                       )}
                     >
-                      {alert.severity}
+                      {severity}
                     </span>
                   </div>
                   <p className="mb-2 break-words text-sm leading-relaxed text-slate-600">
                     {alert.message}
                   </p>
-                  <div className="flex items-center gap-4 text-xs text-slate-400 font-medium">
-                    <span className="flex items-center gap-1">
-                      <Users size={12} /> {alert.user}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-medium text-slate-400">
                     <span className="flex items-center gap-1">
                       <Clock size={12} /> {alert.time}
+                    </span>
+                    <span className="inline-flex items-center gap-1 capitalize">
+                      <Tag size={12} /> {alert.type || "Alert"}
+                    </span>
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-1",
+                        alert.read
+                          ? "bg-slate-100 text-slate-600"
+                          : "bg-blue-50 text-blue-700",
+                      )}
+                    >
+                      {alert.read ? <Eye size={12} /> : <EyeOff size={12} />}
+                      {alert.read ? "Read" : "Unread"}
                     </span>
                   </div>
                 </div>

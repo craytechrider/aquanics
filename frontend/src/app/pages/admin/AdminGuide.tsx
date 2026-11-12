@@ -35,7 +35,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: "Understand the main admin dashboard.",
     content: [
       "The Admin Dashboard provides an overview of the AQUANICS system, including registered users, active devices, system health, and recent alerts.",
-      "Use the summary cards to review important system statistics. The navigation cards provide shortcuts to user management, system settings, and activity logs.",
+      "Use the summary cards to review backend-reported system statistics. Administration cards link to user, device, sensor, alert, settings, and activity pages.",
       "Review System Alerts & Notifications regularly to identify problems that may need attention.",
     ],
   },
@@ -47,7 +47,28 @@ const GUIDE_SECTIONS: GuideSection[] = [
       "Open User Management to view, create, edit, and delete user accounts.",
       "Select Add New User and enter the required name, email, password, and role information.",
       "Use the Edit button to update an account and the Delete button to remove an account when appropriate. Follow the application's restrictions on deleting administrator accounts.",
-      "Assign roles carefully. Admin accounts have administrative privileges, while Farmer and Technician permissions should follow the access rules configured in the application.",
+      "Assign roles carefully. Admin is the full system administrator role. Farmer is the regular farmer role; use other roles only where they are available and intended.",
+    ],
+  },
+  {
+    title: "Device Management",
+    icon: Cpu,
+    description: "Review and control connected system devices.",
+    content: [
+      "Device Management shows the device records returned by the backend, including each device's name, reported mode, and schedule where available.",
+      "Search the list by device name. Use the device control button to switch its reported on/off state; the page updates the device state after the backend confirms the action.",
+      "If a device cannot be loaded or controlled, use the displayed retry/error message and check the connection.",
+    ],
+  },
+  {
+    title: "Sensor Management",
+    icon: Thermometer,
+    description: "Review sensor measurements and status.",
+    content: [
+      "Sensor Management displays measurement records returned by the backend for the deployed sensor setup. It shows each measurement key once and does not create placeholder readings.",
+      "Available measurement types can include pH, dissolved oxygen, temperature, ammonia, and water level. The list and count reflect the unique measurement records actually returned by the backend.",
+      "Search by sensor name. Filter by Stable, Warning, Critical, No Data, Offline, or Unconfigured to narrow the measurements.",
+      "The status is calculated using the sensor's Firebase configuration. Select Edit to update the measurement record's name, value, or trend where supported. Threshold configuration is not edited from System Settings.",
     ],
   },
   {
@@ -55,11 +76,21 @@ const GUIDE_SECTIONS: GuideSection[] = [
     icon: Settings,
     description: "Configure system preferences.",
     content: [
-      "The Settings page includes General, Monitoring, Alerts, and Security sections.",
-      "General settings manage system information, notifications, and data logging preferences.",
-      "Monitoring settings include sensor reading intervals, data retention, temperature units, and configured sensor thresholds.",
-      "Alert settings configure available alert preferences. Security settings contain the security options supported by the application.",
-      "Select Save after making changes. Verify the result before leaving the page.",
+      "The Settings page has General, Alerts, and Security tabs.",
+      "General contains the system name and description, read-only system information, and notification/data-logging preferences.",
+      "Alerts contains the configured email recipient, alert frequency, daily limit, email/SMS options, and critical-only preference.",
+      "Security contains the session, password, login-attempt, IP whitelist, multi-factor, and audit-logging settings exposed by the page. Saving stores these values; enforcement depends on the backend and deployment.",
+      "Select Save Settings after changing a tab. Sensor thresholds and telemetry configuration are managed outside System Settings.",
+    ],
+  },
+  {
+    title: "Alert Management",
+    icon: AlertTriangle,
+    description: "Filter and review system alerts.",
+    content: [
+      "Alert Management lists alerts returned by the backend, including title, message, severity, type, date and time, and read/unread state.",
+      "Use the Critical, Warning, Success, and Info filters to view a severity category, or search matching alert text or type.",
+      "Use the delete action to remove an alert after confirming. The current page does not provide a separate resolve or mark-as-read action.",
     ],
   },
   {
@@ -67,7 +98,7 @@ const GUIDE_SECTIONS: GuideSection[] = [
     icon: Activity,
     description: "Review user actions and audit records.",
     content: [
-      "Activity Logs provide records of actions performed within the system.",
+      "Activity Logs provide paginated records returned by the backend.",
       "Review the time, user, activity description, type, and status of each record.",
       "Select the details icon to inspect additional information when it is available.",
       "Use the pagination controls to navigate through available records. Investigate denied actions or unexpected changes when necessary.",
@@ -102,7 +133,6 @@ const GUIDE_SECTIONS: GuideSection[] = [
     description: "Maintain reliable system data.",
     content: [
       "Sensor readings and application records are stored using the configured backend and database services.",
-      "Data retention settings should match your monitoring and reporting requirements.",
       "Create regular backups using your actual database and hosting backup procedures, and verify that backups can be restored.",
       "Use available reports and exports to review data. Avoid manually deleting production records without authorization.",
     ],
