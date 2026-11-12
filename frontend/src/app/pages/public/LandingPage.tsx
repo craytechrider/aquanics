@@ -1,487 +1,683 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import {
   Activity,
+  ArrowDown,
   ArrowRight,
+  ArrowUpRight,
+  BellRing,
   BookOpen,
-  CheckCircle2,
+  Check,
+  Cpu,
   Droplets,
   Fish,
   Gauge,
   Leaf,
-  LogIn,
-  ShieldCheck,
+  Menu,
+  Shield,
+  Thermometer,
   Waves,
-  Zap,
+  X,
 } from "lucide-react";
+import logo from "../../../assets/bf2f001026d6edc1e3beec70ce5240dc1734a24f.png";
+import aquaponicsIllustration from "../../../assets/236227259a39f8fc98372b0db000196c5ed358d0.png";
 import { logGuestActivity } from "../../../lib/guestActivity";
+
+const navigation = [
+  { label: "Home", href: "#home" },
+  { label: "About", href: "#about" },
+  { label: "Features", href: "#features" },
+  { label: "How It Works", href: "#how-it-works" },
+  { label: "Contact", href: "#contact" },
+];
 
 const features = [
   {
-    title: "Water Quality",
+    title: "Real-Time Monitoring",
     description:
-      "Explore available water sensor readings and understand important water conditions.",
-    icon: Droplets,
-    color: "bg-emerald-400/15 text-emerald-300",
-  },
-  {
-    title: "Live Monitoring",
-    description:
-      "View current sensor readings and explore historical water quality trends.",
+      "See the latest available readings from the connected aquaponics system.",
     icon: Activity,
-    color: "bg-cyan-400/15 text-cyan-300",
+    tone: "bg-emerald-50 text-emerald-700",
   },
   {
-    title: "Aquaponics Learning",
+    title: "Water Measurements",
     description:
-      "Discover educational resources about fish care, plant growth, and water systems.",
-    icon: Leaf,
-    color: "bg-lime-400/15 text-lime-300",
+      "Review configured measurements such as pH, dissolved oxygen, temperature, ammonia, and water level.",
+    icon: Droplets,
+    tone: "bg-cyan-50 text-cyan-700",
   },
   {
-    title: "Water Circulation",
+    title: "Intelligent Alerts",
     description:
-      "Learn how circulating water connects fish, beneficial bacteria, and plants.",
-    icon: Waves,
-    color: "bg-blue-400/15 text-blue-300",
+      "Review alerts raised when readings cross the system's configured sensor limits.",
+    icon: BellRing,
+    tone: "bg-amber-50 text-amber-700",
+  },
+  {
+    title: "Device Management",
+    description:
+      "Authorized users can view and operate the devices connected to their system.",
+    icon: Cpu,
+    tone: "bg-blue-50 text-blue-700",
+  },
+  {
+    title: "Trends and History",
+    description:
+      "Explore available historical readings and charts to understand changes over time.",
+    icon: Gauge,
+    tone: "bg-violet-50 text-violet-700",
+  },
+  {
+    title: "Role-Based Access",
+    description:
+      "Admin and Farmer accounts see the system tools and information permitted for their role.",
+    icon: Shield,
+    tone: "bg-teal-50 text-teal-700",
   },
 ];
 
-const benefits = [
+const steps = [
   {
     number: "01",
-    title: "Explore Sensor Readings",
+    title: "Connect",
     description:
-      "View available monitoring data through a dedicated guest dashboard.",
-    icon: Gauge,
+      "The deployed IoT device collects the water measurements supported by its connected sensors.",
+    icon: Cpu,
   },
   {
     number: "02",
-    title: "Understand Water Trends",
+    title: "Transmit",
     description:
-      "Explore historical readings and compare changes over selected time ranges.",
-    icon: Activity,
+      "Available readings are sent to the AQUANICS platform through its connected data services.",
+    icon: Waves,
   },
   {
     number: "03",
-    title: "Learn Aquaponics",
+    title: "Monitor",
     description:
-      "Access educational materials about maintaining an integrated growing system.",
-    icon: BookOpen,
+      "Farmers and administrators review current measurements, status, and historical information.",
+    icon: Gauge,
+  },
+  {
+    number: "04",
+    title: "Respond",
+    description:
+      "Users review system alerts and take appropriate action for their aquaponics setup.",
+    icon: BellRing,
+  },
+];
+
+const accessRoles = [
+  {
+    title: "Admin",
+    description: "Full administrative access to manage the platform.",
+    icon: Shield,
+    tone: "bg-slate-900 text-emerald-300",
+    permissions: [
+      "Manage user accounts",
+      "Manage system devices and sensors",
+      "Review alerts and activity logs",
+      "Configure available system settings",
+    ],
+  },
+  {
+    title: "Farmer",
+    description: "A focused workspace for day-to-day aquaponics management.",
+    icon: Leaf,
+    tone: "bg-emerald-700 text-white",
+    permissions: [
+      "Access the Farmer dashboard",
+      "View available monitoring information",
+      "Review relevant alerts and system details",
+      "Use the tools enabled for the account",
+    ],
   },
 ];
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   useEffect(() => {
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    root.style.scrollBehavior = prefersReducedMotion ? "auto" : "smooth";
     void logGuestActivity(
       "Viewed Home Page",
       "Guest opened the AQUANICS landing page.",
     );
+
+    return () => {
+      root.style.scrollBehavior = previousScrollBehavior;
+    };
   }, []);
 
-  return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f4f7f5] text-slate-800">
-      {/* Navigation */}
-      <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-[76px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <Link to="/" className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#123b2d] text-emerald-300 shadow-lg shadow-emerald-950/10">
-              <Leaf size={25} />
-            </div>
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
-            <div className="min-w-0">
-              <span className="block text-lg font-black tracking-wide text-[#123b2d] sm:text-xl">
+  return (
+    <div className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-800">
+      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-sm shadow-slate-900/[0.03] backdrop-blur-xl">
+        <div className="mx-auto flex min-h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link
+            to="/"
+            aria-label="AQUANICS home"
+            className="flex min-w-0 items-center gap-2.5"
+            onClick={closeMobileMenu}
+          >
+            <img
+              src={logo}
+              alt=""
+              className="h-11 w-11 shrink-0 rounded-xl object-contain"
+            />
+            <span className="min-w-0">
+              <span className="block font-display text-base font-bold tracking-tight text-slate-900 sm:text-lg">
                 AQUANICS
               </span>
-              <span className="block truncate text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-700 sm:text-xs sm:tracking-wider">
-                Smart Aquaponics System
+              <span className="block truncate text-[9px] font-semibold uppercase tracking-[0.13em] text-emerald-700 sm:text-[10px]">
+                Smart Aquaponics
               </span>
-            </div>
+            </span>
           </Link>
 
-          <nav className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Link
-              to="/guest/learning"
-              className="hidden items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-800 sm:inline-flex"
-            >
-              <BookOpen size={17} />
-              Learning Center
-            </Link>
+          <nav
+            aria-label="Main navigation"
+            className="hidden items-center gap-1 lg:flex"
+          >
+            {navigation.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-800"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
 
+          <div className="hidden items-center gap-3 lg:flex">
+            <Link
+              to="/guest/dashboard"
+              className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            >
+              Explore
+              <ArrowUpRight size={15} />
+            </Link>
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#123b2d] px-3.5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-900 sm:px-4"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-500/25"
             >
-              <LogIn size={17} />
-              Login
+              Sign In
+              <ArrowRight size={16} />
             </Link>
-          </nav>
+          </div>
+
+          <button
+            type="button"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-controls="mobile-navigation"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 lg:hidden"
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
+
+        {mobileMenuOpen && (
+          <nav
+            id="mobile-navigation"
+            aria-label="Mobile navigation"
+            className="animate-in fade-in slide-in-from-top-2 border-t border-slate-100 bg-white px-4 pb-4 pt-2 shadow-lg shadow-slate-900/5 lg:hidden"
+          >
+            <div className="mx-auto flex max-w-7xl flex-col gap-1">
+              {navigation.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={closeMobileMenu}
+                  className="rounded-xl px-3 py-3 text-sm font-semibold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800"
+                >
+                  {item.label}
+                </a>
+              ))}
+              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                <Link
+                  to="/guest/dashboard"
+                  onClick={closeMobileMenu}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Explore
+                  <ArrowUpRight size={15} />
+                </Link>
+                <Link
+                  to="/login"
+                  onClick={closeMobileMenu}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                >
+                  Sign In
+                  <ArrowRight size={15} />
+                </Link>
+              </div>
+            </div>
+          </nav>
+        )}
       </header>
 
       <main>
-        {/* Hero */}
-        <section className="relative isolate overflow-hidden bg-[#123b2d] text-white">
-          <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-br from-[#123b2d] via-[#176449] to-[#0e3025]" />
-          <div className="pointer-events-none absolute -right-24 -top-24 -z-10 h-96 w-96 rounded-full border-[50px] border-white/[0.04]" />
-          <div className="pointer-events-none absolute -bottom-40 left-1/4 -z-10 h-96 w-96 rounded-full bg-emerald-400/[0.08] blur-3xl" />
+        <section
+          id="home"
+          className="relative isolate scroll-mt-24 overflow-hidden border-b border-emerald-950/5 bg-white"
+        >
+          <div className="pointer-events-none absolute -left-40 top-12 -z-10 h-96 w-96 rounded-full bg-emerald-100/70 blur-3xl" />
+          <div className="pointer-events-none absolute -right-36 bottom-0 -z-10 h-96 w-96 rounded-full bg-cyan-50 blur-3xl" />
 
-          <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14 lg:px-8 lg:py-24">
-            {/* Hero text */}
-            <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-white/[0.08] px-3.5 py-2 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-200 sm:text-xs">
-                <span className="h-2 w-2 rounded-full bg-emerald-300" />
-                Smart Aquaponics Monitoring
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1fr_1.05fr] lg:gap-14 lg:px-8 lg:py-24">
+            <div className="animate-in fade-in slide-in-from-bottom-3 duration-700">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.13em] text-emerald-800 sm:text-xs">
+                <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                IoT Aquaponics Monitoring
               </div>
 
-              <h1 className="max-w-2xl text-4xl font-black leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
-                Grow smarter.
-                <span className="mt-2 block text-emerald-300">
-                  Monitor better.
+              <h1 className="max-w-2xl font-display text-4xl font-bold leading-[1.08] tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+                Smarter Aquaponics.
+                <span className="mt-2 block text-emerald-700">
+                  Healthier Ecosystems.
                 </span>
-                <span className="mt-2 block">Grow sustainably.</span>
               </h1>
 
-              <p className="mt-6 max-w-xl text-sm leading-7 text-emerald-50/75 sm:text-base sm:leading-8 lg:text-lg">
-                Welcome to AQUANICS, your window into aquaponics monitoring.
-                Explore available water sensor readings, discover historical
-                trends, and learn how fish and plants work together in a
-                connected growing system.
+              <p className="mt-6 max-w-xl text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
+                Monitor your aquaponics system with connected IoT technology.
+                Explore available water measurements, review alerts, and manage
+                your system through one integrated platform.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  to="/guest/dashboard"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-300 px-5 py-3.5 text-sm font-extrabold text-[#123b2d] shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-emerald-200"
+                  to="/login"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-semibold text-white shadow-md shadow-emerald-950/10 transition hover:-translate-y-0.5 hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-500/25"
                 >
-                  Explore Guest Dashboard
-                  <ArrowRight size={18} />
+                  Sign In to AQUANICS
+                  <ArrowRight size={17} />
                 </Link>
-
-                <Link
-                  to="/guest/learning"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/[0.06] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-white/[0.12]"
+                <a
+                  href="#features"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50/60 hover:text-emerald-800"
                 >
-                  <BookOpen size={18} />
-                  Visit Learning Center
-                </Link>
+                  Explore Features
+                  <ArrowDown size={16} />
+                </a>
               </div>
 
-              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs font-medium text-emerald-50/65">
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs font-medium text-slate-500">
                 <span className="inline-flex items-center gap-2">
-                  <CheckCircle2 size={15} className="text-emerald-300" />
-                  Public monitoring access
+                  <Check size={15} className="text-emerald-700" />
+                  Public read-only monitoring
                 </span>
                 <span className="inline-flex items-center gap-2">
-                  <ShieldCheck size={15} className="text-emerald-300" />
-                  Read-only guest mode
+                  <Shield size={15} className="text-emerald-700" />
+                  Secure role-based access
                 </span>
               </div>
             </div>
 
-            {/* Overview panel */}
-            <div className="relative">
-              <div className="absolute -inset-4 rounded-[2rem] bg-emerald-300/[0.06] blur-2xl" />
-
-              <div className="relative overflow-hidden rounded-[28px] border border-white/15 bg-white/[0.08] p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-6">
-                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-5">
-                  <div>
-                    <p className="text-base font-extrabold sm:text-lg">
-                      Aquaponics Overview
-                    </p>
-                    <p className="mt-1 text-xs text-emerald-50/60 sm:text-sm">
-                      Water · Fish · Plants
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-2 text-[10px] font-bold text-emerald-200 sm:text-xs">
-                    <Activity size={14} />
-                    Monitoring Portal
-                  </div>
-                </div>
-
-                {/* Aquaponics illustration */}
-                <div className="relative my-5 overflow-hidden rounded-2xl border border-white/10 bg-[#0d3025]/80 p-5 sm:p-7">
-                  <div className="absolute -right-8 -top-10 h-36 w-36 rounded-full bg-emerald-400/10 blur-2xl" />
-
-                  <div className="relative grid grid-cols-3 items-center gap-2">
-                    <div className="flex flex-col items-center text-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-200/15 bg-cyan-300/10 text-cyan-200 sm:h-16 sm:w-16">
-                        <Waves size={30} />
-                      </div>
-                      <span className="mt-3 text-xs font-bold sm:text-sm">
-                        Water
-                      </span>
-                      <span className="mt-1 text-[10px] text-white/50">
-                        Monitor
-                      </span>
-                    </div>
-
-                    <div className="flex justify-center">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-emerald-200">
-                        <ArrowRight size={18} />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-center text-center">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-200/15 bg-emerald-300/10 text-emerald-200 sm:h-16 sm:w-16">
-                        <Leaf size={30} />
-                      </div>
-                      <span className="mt-3 text-xs font-bold sm:text-sm">
-                        Plants
-                      </span>
-                      <span className="mt-1 text-[10px] text-white/50">
-                        Grow
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="my-5 flex items-center justify-center gap-3">
-                    <div className="h-px flex-1 bg-white/10" />
-                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200/70">
-                      Connected ecosystem
+            <div className="relative animate-in fade-in zoom-in-95 duration-700 motion-safe:delay-150">
+              <div className="absolute -inset-3 rounded-[2rem] bg-emerald-100/60 blur-2xl" />
+              <figure className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2 shadow-xl shadow-slate-900/10 sm:rounded-[1.75rem] sm:p-3">
+                <img
+                  src={aquaponicsIllustration}
+                  alt="Illustration of plants growing above a fish-filled aquaponics water system"
+                  className="aspect-[1.35/1] w-full rounded-xl object-cover sm:rounded-[1.25rem]"
+                />
+                <figcaption className="absolute bottom-5 left-5 right-5 flex items-center justify-between gap-3 rounded-xl border border-white/60 bg-white/95 p-3 shadow-lg backdrop-blur sm:bottom-7 sm:left-7 sm:right-7 sm:p-4">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                      <Waves size={21} />
                     </span>
-                    <div className="h-px flex-1 bg-white/10" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-bold text-slate-900 sm:text-sm">
+                        A connected growing system
+                      </span>
+                      <span className="mt-1 block truncate text-[10px] text-slate-500 sm:text-xs">
+                        Water · Plants · Fish
+                      </span>
+                    </span>
                   </div>
-
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200">
-                      <Fish size={23} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold">
-                        Fish and beneficial bacteria
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-white/50">
-                        Supporting the natural nutrient cycle
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Feature tiles */}
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    {
-                      label: "Water Quality",
-                      detail: "Sensor readings",
-                      icon: Droplets,
-                      color: "text-emerald-200 bg-emerald-300/10",
-                    },
-                    {
-                      label: "Live Monitoring",
-                      detail: "Available telemetry",
-                      icon: Activity,
-                      color: "text-cyan-200 bg-cyan-300/10",
-                    },
-                    {
-                      label: "Learning Resources",
-                      detail: "Guides and articles",
-                      icon: BookOpen,
-                      color: "text-lime-200 bg-lime-300/10",
-                    },
-                    {
-                      label: "Smart Technology",
-                      detail: "IoT-based system",
-                      icon: Zap,
-                      color: "text-amber-200 bg-amber-300/10",
-                    },
-                  ].map((feature) => {
-                    const Icon = feature.icon;
-
-                    return (
-                      <div
-                        key={feature.label}
-                        className="rounded-2xl border border-white/10 bg-black/[0.12] p-3.5 transition hover:border-white/20 hover:bg-white/[0.06] sm:p-4"
-                      >
-                        <div
-                          className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${feature.color}`}
-                        >
-                          <Icon size={19} />
-                        </div>
-                        <p className="text-xs font-extrabold sm:text-sm">
-                          {feature.label}
-                        </p>
-                        <p className="mt-1 text-[10px] text-white/50 sm:text-xs">
-                          {feature.detail}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
-                  <ShieldCheck
-                    size={19}
-                    className="mt-0.5 shrink-0 text-emerald-300"
-                  />
-                  <p className="text-xs leading-5 text-emerald-50/65">
-                    Guests can explore available readings and educational
-                    resources. Device controls and management tools require an
-                    authorized account.
-                  </p>
-                </div>
-              </div>
+                  <span className="hidden shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-800 sm:inline-flex">
+                    <Activity size={13} />
+                    AQUANICS
+                  </span>
+                </figcaption>
+              </figure>
             </div>
           </div>
         </section>
 
-        {/* Features */}
-        <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-          <div className="mx-auto mb-8 max-w-2xl text-center sm:mb-10">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">
-              Discover AQUANICS
-            </p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-              Everything starts with understanding your system.
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base">
-              Explore the information and educational resources available
-              through the AQUANICS public portal.
-            </p>
-          </div>
+        <section
+          id="about"
+          className="scroll-mt-24 border-b border-slate-200/70 bg-slate-50"
+        >
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16 lg:px-8">
+            <div className="animate-in fade-in slide-in-from-bottom-3 duration-700">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                About AQUANICS
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-slate-950 sm:text-4xl">
+                A clearer view of your aquaponics system.
+              </h2>
+              <p className="mt-5 text-sm leading-7 text-slate-600 sm:text-base">
+                AQUANICS is an IoT-based aquaponics monitoring platform. It
+                brings connected sensor information, system alerts, and
+                educational resources into one place to help people understand
+                and manage an integrated fish-and-plant growing system.
+              </p>
+              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                The platform presents the measurements available from the
+                deployed setup. What appears depends on connected sensors and
+                incoming system data.
+              </p>
+              <Link
+                to="/guest/learning"
+                className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-800"
+              >
+                Visit the Learning Center
+                <ArrowUpRight size={16} />
+              </Link>
+            </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
-            {features.map((feature) => {
-              const Icon = feature.icon;
-
-              return (
-                <article
-                  key={feature.title}
-                  className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-950/[0.05] sm:p-6"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-800 transition group-hover:bg-emerald-100">
-                    <Icon size={24} />
-                  </div>
-
-                  <h3 className="mt-5 text-base font-extrabold text-slate-900">
-                    {feature.title}
-                  </h3>
-
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    {feature.description}
-                  </p>
-
-                  <Link
-                    to={
-                      feature.title === "Aquaponics Learning"
-                        ? "/guest/learning"
-                        : "/guest/dashboard"
-                    }
-                    className="mt-5 inline-flex items-center gap-2 text-xs font-extrabold text-emerald-800 transition group-hover:gap-3"
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                {
+                  title: "Water",
+                  text: "Measurements help describe changing system conditions.",
+                  icon: Droplets,
+                  iconClass: "bg-cyan-50 text-cyan-700",
+                },
+                {
+                  title: "Plants",
+                  text: "Plant growth is part of the shared aquaponics cycle.",
+                  icon: Leaf,
+                  iconClass: "bg-emerald-50 text-emerald-700",
+                },
+                {
+                  title: "Fish",
+                  text: "Fish and beneficial bacteria support the nutrient cycle.",
+                  icon: Fish,
+                  iconClass: "bg-amber-50 text-amber-700",
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article
+                    key={item.title}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
                   >
-                    Explore
-                    <ArrowRight size={15} />
-                  </Link>
-                </article>
-              );
-            })}
+                    <span
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl ${item.iconClass}`}
+                    >
+                      <Icon size={22} />
+                    </span>
+                    <h3 className="mt-5 font-display text-base font-semibold text-slate-900">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-xs leading-5 text-slate-500 sm:text-sm">
+                      {item.text}
+                    </p>
+                  </article>
+                );
+              })}
+            </div>
           </div>
         </section>
 
-        {/* How it helps */}
-        <section className="border-y border-emerald-950/5 bg-white">
-          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-            <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:gap-16">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
-                  <Leaf size={15} />
-                  Learn and Explore
-                </div>
+        <section
+          id="features"
+          className="scroll-mt-24 bg-white"
+        >
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                Platform Features
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                The tools to stay informed.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                AQUANICS combines available monitoring data with practical
+                system tools for authorized users.
+              </p>
+            </div>
 
-                <h2 className="mt-5 text-3xl font-black leading-tight tracking-tight text-slate-900 sm:text-4xl">
-                  A clearer view of your aquaponics system.
-                </h2>
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+              {features.map((feature, index) => {
+                const Icon = feature.icon;
+                return (
+                  <article
+                    key={feature.title}
+                    className="group animate-in fade-in slide-in-from-bottom-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-lg hover:shadow-slate-900/[0.06] sm:p-6"
+                    style={{ animationDelay: `${index * 70}ms` }}
+                  >
+                    <span
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl transition group-hover:scale-105 ${feature.tone}`}
+                    >
+                      <Icon size={23} />
+                    </span>
+                    <h3 className="mt-5 font-display text-base font-semibold text-slate-900">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {feature.description}
+                    </p>
+                    <Link
+                      to="/guest/dashboard"
+                      className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-emerald-800 transition group-hover:gap-3"
+                    >
+                      Explore public monitoring
+                      <ArrowRight size={15} />
+                    </Link>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-                <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base">
-                  AQUANICS brings sensor information and learning materials
-                  together to help visitors understand the role of water quality
-                  in an integrated fish and plant growing system.
-                </p>
+        <section
+          id="how-it-works"
+          className="scroll-mt-24 border-y border-slate-200 bg-slate-50"
+        >
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                How It Works
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                From sensor reading to informed action.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                A straightforward view of the data path and the tools available
+                in the AQUANICS platform.
+              </p>
+            </div>
 
+            <div className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {steps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <article
+                    key={step.number}
+                    className="relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold tracking-widest text-emerald-700">
+                        {step.number}
+                      </span>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                        <Icon size={21} />
+                      </span>
+                    </div>
+                    <h3 className="mt-5 font-display text-lg font-semibold text-slate-900">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {step.description}
+                    </p>
+                    {index < steps.length - 1 && (
+                      <ArrowRight
+                        aria-hidden="true"
+                        size={18}
+                        className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 text-emerald-600 lg:block"
+                      />
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section id="platform" className="scroll-mt-24 bg-white">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-14 lg:px-8">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2 shadow-lg shadow-slate-900/[0.06] sm:rounded-[1.75rem] sm:p-3">
+              <img
+                src={aquaponicsIllustration}
+                alt="Aquaponics illustration showing leafy plants growing above a fish tank"
+                loading="lazy"
+                className="aspect-[1.65/1] w-full rounded-xl object-cover sm:rounded-[1.25rem]"
+              />
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                Explore the Platform
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                Take a closer look at AQUANICS.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                Open the public dashboard to view the readings currently
+                available to guests, or visit the Learning Center for
+                aquaponics resources. Account holders can sign in to access the
+                dashboard and management tools for their role.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/guest/dashboard"
-                  className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#123b2d] px-5 py-3.5 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-900"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
                 >
                   Open Guest Dashboard
-                  <ArrowRight size={17} />
+                  <ArrowRight size={16} />
+                </Link>
+                <Link
+                  to="/guest/learning"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50/60 hover:text-emerald-800"
+                >
+                  <BookOpen size={16} />
+                  Learning Center
                 </Link>
               </div>
-
-              <div className="space-y-4">
-                {benefits.map((benefit) => {
-                  const Icon = benefit.icon;
-
-                  return (
-                    <div
-                      key={benefit.number}
-                      className="flex gap-4 rounded-2xl border border-slate-200/80 bg-[#f8faf9] p-5 transition hover:border-emerald-200 hover:bg-emerald-50/30 sm:gap-5 sm:p-6"
-                    >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
-                        <Icon size={23} />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] font-black tracking-widest text-emerald-700">
-                            {benefit.number}
-                          </span>
-                          <h3 className="text-sm font-extrabold text-slate-900 sm:text-base">
-                            {benefit.title}
-                          </h3>
-                        </div>
-
-                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                          {benefit.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <p className="mt-4 text-xs leading-5 text-slate-500">
+                The image is an aquaponics illustration, not a screenshot of
+                live dashboard data.
+              </p>
             </div>
           </div>
         </section>
 
-        {/* Call to action */}
-        <section className="px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
-          <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[28px] bg-gradient-to-br from-[#123b2d] via-[#176449] to-[#0e3025] p-6 text-white shadow-xl shadow-emerald-950/10 sm:p-10 lg:p-14">
-            <div className="pointer-events-none absolute -right-10 -top-20 h-64 w-64 rounded-full border-[35px] border-white/[0.05]" />
+        <section
+          id="account-access"
+          className="border-y border-slate-200 bg-slate-50"
+        >
+          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">
+                Account Access
+              </p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                The right tools for each role.
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+                Sign in to open the AQUANICS workspace associated with your
+                account.
+              </p>
+            </div>
 
+            <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
+              {accessRoles.map((role) => {
+                const Icon = role.icon;
+                return (
+                  <article
+                    key={role.title}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"
+                  >
+                    <div className="flex items-start gap-4">
+                      <span
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${role.tone}`}
+                      >
+                        <Icon size={22} />
+                      </span>
+                      <div>
+                        <h3 className="font-display text-xl font-bold text-slate-900">
+                          {role.title}
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          {role.description}
+                        </p>
+                      </div>
+                    </div>
+                    <ul className="mt-5 space-y-3 border-t border-slate-100 pt-5">
+                      {role.permissions.map((permission) => (
+                        <li
+                          key={permission}
+                          className="flex items-start gap-2.5 text-sm text-slate-600"
+                        >
+                          <Check
+                            size={16}
+                            className="mt-0.5 shrink-0 text-emerald-700"
+                          />
+                          <span>{permission}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section id="contact" className="scroll-mt-24 bg-slate-900 px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+          <div className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800 to-slate-950 p-6 text-white shadow-xl shadow-slate-950/10 sm:rounded-[1.75rem] sm:p-10 lg:p-14">
+            <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full border-[38px] border-emerald-400/[0.08]" />
             <div className="relative flex flex-col justify-between gap-7 lg:flex-row lg:items-center">
               <div className="max-w-2xl">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
-                  Start Exploring
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">
+                  Get Started
                 </p>
-
-                <h2 className="mt-3 text-2xl font-black leading-tight sm:text-3xl lg:text-4xl">
-                  Curious about aquaponics?
-                  <span className="block text-emerald-300">
-                    Start with AQUANICS.
-                  </span>
+                <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+                  Take control of your aquaponics system.
                 </h2>
-
-                <p className="mt-4 text-sm leading-7 text-emerald-50/70 sm:text-base">
-                  Explore available monitoring data or visit the Learning
-                  Center. No guest account is required to browse these pages.
+                <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">
+                  Stay informed about available system measurements with the
+                  AQUANICS monitoring platform.
                 </p>
               </div>
-
-              <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
+              <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
                 <Link
-                  to="/guest/dashboard"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-300 px-5 py-3.5 text-sm font-extrabold text-[#123b2d] transition hover:bg-emerald-200"
+                  to="/login"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-3.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300/30"
                 >
-                  View Dashboard
+                  Sign In to AQUANICS
                   <ArrowRight size={17} />
                 </Link>
-
                 <Link
-                  to="/guest/learning"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/[0.06] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-white/[0.12]"
+                  to="/guest/dashboard"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/[0.06] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-white/[0.12]"
                 >
-                  <BookOpen size={17} />
-                  Learn More
+                  Explore as Guest
+                  <ArrowUpRight size={16} />
                 </Link>
               </div>
             </div>
@@ -489,44 +685,75 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#123b2d] text-emerald-300">
-              <Leaf size={20} />
-            </div>
-            <div>
-              <p className="text-sm font-black tracking-wide text-[#123b2d]">
-                AQUANICS
-              </p>
-              <p className="text-[10px] text-slate-500">
-                Smart Aquaponics Monitoring
-              </p>
-            </div>
-          </Link>
-
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-slate-500">
-            <Link
-              to="/guest/dashboard"
-              className="transition hover:text-emerald-800"
-            >
-              Guest Dashboard
+        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-9 sm:px-6 md:grid-cols-[1.2fr_1fr_1fr] lg:px-8 lg:py-11">
+          <div>
+            <Link to="/" className="inline-flex items-center gap-2.5">
+              <img
+                src={logo}
+                alt=""
+                className="h-10 w-10 rounded-xl object-contain"
+              />
+              <span>
+                <span className="block font-display text-base font-bold text-slate-900">
+                  AQUANICS
+                </span>
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                  Smart Aquaponics
+                </span>
+              </span>
             </Link>
-            <Link
-              to="/guest/learning"
-              className="transition hover:text-emerald-800"
-            >
-              Learning Center
-            </Link>
-            <Link to="/login" className="transition hover:text-emerald-800">
-              Login
-            </Link>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-slate-500">
+              An IoT-based platform for aquaponics monitoring, system
+              information, and learning resources.
+            </p>
           </div>
 
-          <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} AQUANICS Systems
-          </p>
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Explore</h2>
+            <div className="mt-3 grid gap-2">
+              {navigation.slice(0, 4).map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="w-fit text-sm text-slate-500 transition hover:text-emerald-800"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Platform</h2>
+            <div className="mt-3 grid gap-2">
+              <Link
+                to="/guest/dashboard"
+                className="w-fit text-sm text-slate-500 transition hover:text-emerald-800"
+              >
+                Guest Dashboard
+              </Link>
+              <Link
+                to="/guest/learning"
+                className="w-fit text-sm text-slate-500 transition hover:text-emerald-800"
+              >
+                Learning Center
+              </Link>
+              <Link
+                to="/login"
+                className="w-fit text-sm text-slate-500 transition hover:text-emerald-800"
+              >
+                Sign In
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100">
+          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-4 text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <span>© {new Date().getFullYear()} AQUANICS Systems</span>
+            <span>Connected aquaponics monitoring</span>
+          </div>
         </div>
       </footer>
     </div>
