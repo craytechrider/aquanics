@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Alert;
+use App\Models\AlertRecipient;
 use Illuminate\Http\Request;
 
 class AlertController extends Controller
@@ -13,17 +14,18 @@ class AlertController extends Controller
      */
     public function index(Request $request)
     {
-        $alerts = Alert::query()
-            ->where(function ($query) use ($request) {
-                $query->whereNull('user_id')
-                    ->orWhere(
-                        'user_id',
-                        $request->user()->id
-                    );
-            })
+        $alerts = AlertRecipient::query()
+            ->with('alert')
+            ->where('user_id', $request->user()->id)
             ->latest()
             ->limit(50)
-            ->get();
+            ->get()
+            ->map(function (AlertRecipient $recipient): array {
+                $alert = $recipient->alert->toArray();
+                $alert['is_read'] = $recipient->is_read;
+
+                return $alert;
+            });
 
         return response()->json([
             'alerts' => $alerts,
@@ -37,22 +39,18 @@ class AlertController extends Controller
         Request $request,
         Alert $alert
     ) {
-        if (
-            $alert->user_id !== null &&
-            $alert->user_id !== $request->user()->id
-        ) {
-            return response()->json([
-                'message' => 'Unauthorized',
-            ], 403);
-        }
+        $recipient = AlertRecipient::query()
+            ->where('alert_id', $alert->id)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
 
-        $alert->update([
+        $recipient->update([
             'is_read' => true,
         ]);
 
         return response()->json([
             'message' => 'Alert marked as read',
-            'alert' => $alert,
+            'alert' => array_merge($alert->toArray(), ['is_read' => true]),
         ]);
     }
 }

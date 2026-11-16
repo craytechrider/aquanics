@@ -42,9 +42,19 @@ def main():
     crop_data = growth.get("crop", {})
     # Firebase keys may be generated push IDs or names like growth_YYYY-MM-DD.
     # Align records using the explicit date field instead of assuming keys are dates.
-    fish_records = {str(v.get("date")): v for v in fish_data.values() if isinstance(v, dict) and v.get("date")}
-    crop_records = {str(v.get("date")): v for v in crop_data.values() if isinstance(v, dict) and v.get("date")}
+    
+    fish_records = {
+        str(v.get("date")): v 
+        for v in fish_data.values() 
+        if isinstance(v, dict) and v.get("date")}
+    
+    crop_records = {
+        str(v.get("date")): v 
+        for v in crop_data.values() 
+        if isinstance(v, dict) and v.get("date")}
     dates = sorted(set(fish_records) & set(crop_records))
+
+
     if len(dates) < 20:
         raise SystemExit(f"Need at least 20 matching fish/crop daily records; found {len(dates)}.")
 
@@ -84,7 +94,12 @@ def main():
             evaluation.fit(xh[:split], y[:split])
             heldout = evaluation.predict(xh[split:]) if split < len(indices) else np.array([])
             mae = float(mean_absolute_error(y[split:], heldout)) if len(heldout) else None
-            model = RandomForestRegressor(n_estimators=80, max_depth=4, min_samples_leaf=2, random_state=42, n_jobs=-1)
+            model = RandomForestRegressor(
+                n_estimators=80, 
+                max_depth=4, 
+                min_samples_leaf=2, 
+                random_state=42, 
+                n_jobs=-1)
             model.fit(xh, y)
             trees = []
             for estimator in model.estimators_:

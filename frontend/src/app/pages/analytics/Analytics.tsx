@@ -43,12 +43,15 @@ interface FishConfiguration {
   ageWeeks: number;
   startingWeight: number;
   targetWeight: number;
+  cycleStartDate: string;
+  status: "active" | "harvested";
 }
 
 interface FishMeasurement {
   id: string;
   date: string;
   averageWeight: number;
+  cycleStartDate?: string;
   notes?: string;
   createdAt?: string;
 }
@@ -57,6 +60,7 @@ interface CropMeasurement {
   id: string;
   date: string;
   heightCm: number;
+  cyclePlantingDate?: string;
   leafCount?: number;
   notes?: string;
   createdAt?: string;
@@ -82,7 +86,15 @@ interface ForestModel {
   trainingData: string;
   trainedThrough: string;
   featureNames: string[];
-  models: Record<string, { trees: ForestTree[]; maeHoldout: number | null; testSamples: number; trainingSamples: number }>;
+  models: Record<
+    string,
+    {
+      trees: ForestTree[];
+      maeHoldout: number | null;
+      testSamples: number;
+      trainingSamples: number;
+    }
+  >;
 }
 
 interface ForecastPoint {
@@ -111,35 +123,55 @@ function latestSensorMean(value: unknown): number | null {
   return null;
 }
 
-function predictWithForest(model: ForestModel, key: string, features: number[]): number | null {
+function predictWithForest(
+  model: ForestModel,
+  key: string,
+  features: number[],
+): number | null {
   const forest = model.models[key];
   if (!forest?.trees?.length) return null;
   const predictions = forest.trees.map((tree) => {
     let node = 0;
     let guard = 0;
-    while (tree.left[node] !== -1 && tree.right[node] !== -1 && guard < tree.left.length) {
+    while (
+      tree.left[node] !== -1 &&
+      tree.right[node] !== -1 &&
+      guard < tree.left.length
+    ) {
       const featureIndex = tree.feature[node];
-      node = features[featureIndex] <= tree.threshold[node] ? tree.left[node] : tree.right[node];
+      node =
+        features[featureIndex] <= tree.threshold[node]
+          ? tree.left[node]
+          : tree.right[node];
       guard += 1;
     }
     return tree.value[node] ?? 0;
   });
-  return predictions.reduce((sum, value) => sum + value, 0) / predictions.length;
+  return (
+    predictions.reduce((sum, value) => sum + value, 0) / predictions.length
+  );
 }
 
-function averageDailySlope(measurements: Array<{ date: string; value: number }>, windowDays: number): number {
+function averageDailySlope(
+  measurements: Array<{ date: string; value: number }>,
+  windowDays: number,
+): number {
   if (measurements.length < 2) return 0;
   const last = measurements[measurements.length - 1];
   const lastTime = new Date(last.date).getTime();
   let prior = measurements[0];
   for (let i = measurements.length - 2; i >= 0; i -= 1) {
-    const elapsed = (lastTime - new Date(measurements[i].date).getTime()) / 86400000;
+    const elapsed =
+      (lastTime - new Date(measurements[i].date).getTime()) / 86400000;
     if (elapsed >= windowDays) {
       prior = measurements[i];
       break;
     }
   }
-  const days = Math.max((lastTime - new Date(prior.date).getTime()) / 86400000, 1);
+  const days = Math.max(
+    (lastTime - new Date(prior.date).getTime()) / 86400000,
+    1,
+  );
   return (last.value - prior.value) / days;
 }
 
@@ -392,6 +424,8 @@ export default function Analytics() {
             ageWeeks: Number(data.ageWeeks) || 0,
             startingWeight: Number(data.startingWeight) || 0,
             targetWeight: Number(data.targetWeight) || 0,
+            cycleStartDate: data.cycleStartDate || data.date || "",
+            status: data.status === "harvested" ? "harvested" : "active",
           });
         } else {
           setFishConfig(null);
@@ -426,6 +460,7 @@ export default function Analytics() {
               {
                 date?: string;
                 averageWeight?: number | string;
+                cycleStartDate?: string;
                 notes?: string;
                 createdAt?: string;
               }
@@ -434,6 +469,7 @@ export default function Analytics() {
             id,
             date: value.date || "",
             averageWeight: Number(value.averageWeight) || 0,
+            cycleStartDate: value.cycleStartDate || "",
             notes: value.notes || "",
             createdAt: value.createdAt || "",
           }));
@@ -475,6 +511,7 @@ export default function Analytics() {
                 date?: string;
                 heightCm?: number | string;
                 height?: number | string;
+                cyclePlantingDate?: string;
                 leafCount?: number | string;
                 notes?: string;
                 createdAt?: string;
@@ -484,6 +521,7 @@ export default function Analytics() {
             id,
             date: value.date || "",
             heightCm: Number(value.heightCm ?? value.height) || 0,
+            cyclePlantingDate: value.cyclePlantingDate || "",
             leafCount:
               value.leafCount !== undefined
                 ? Number(value.leafCount)
@@ -518,6 +556,18 @@ export default function Analytics() {
     };
   }, []);
 
+  const currentCropMeasurements = useMemo(() => {
+    const cyclePlantingDate = cropConfig?.plantingDate.slice(0, 10);
+    if (!cyclePlantingDate) return cropMeasurements;
+
+    return cropMeasurements.filter((measurement) => {
+      if (measurement.cyclePlantingDate) {
+        return measurement.cyclePlantingDate.slice(0, 10) === cyclePlantingDate;
+      }
+      return measurement.date.slice(0, 10) >= cyclePlantingDate;
+    });
+  }, [cropConfig, cropMeasurements]);
+
   /* =========================================================
      LOAD RANDOM FOREST MODEL + LATEST SENSOR SUMMARIES
      The bundled model was trained on simulated demonstration data.
@@ -527,16 +577,24 @@ export default function Analytics() {
     let active = true;
     fetch(`${import.meta.env.BASE_URL}randomForestModel.json`)
       .then((response) => {
-        if (!response.ok) throw new Error("Could not load the Random Forest model file.");
+        if (!response.ok)
+          throw new Error("Could not load the Random Forest model file.");
         return response.json();
       })
       .then((data: ForestModel) => {
         if (active) setForestModel(data);
       })
       .catch((loadError: unknown) => {
-        if (active) setModelLoadError(loadError instanceof Error ? loadError.message : "Model could not be loaded.");
+        if (active)
+          setModelLoadError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Model could not be loaded.",
+          );
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -547,12 +605,16 @@ export default function Analytics() {
       ["dissolvedOxygen", "sensors/do"],
     ];
     const unsubscribers = channels.map(([field, path]) =>
-      onValue(ref(db, path), (snapshot) => {
-        const mean = latestSensorMean(snapshot.val());
-        setSensorData((current) => ({ ...current, [field]: mean }));
-      }, () => {
-        setSensorData((current) => ({ ...current, [field]: null }));
-      }),
+      onValue(
+        ref(db, path),
+        (snapshot) => {
+          const mean = latestSensorMean(snapshot.val());
+          setSensorData((current) => ({ ...current, [field]: mean }));
+        },
+        () => {
+          setSensorData((current) => ({ ...current, [field]: null }));
+        },
+      ),
     );
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, []);
@@ -560,6 +622,19 @@ export default function Analytics() {
   /* =========================================================
      FISH CALCULATIONS
   ========================================================= */
+
+  const currentFishMeasurements = useMemo(() => {
+    if (fishConfig?.status === "harvested") return [];
+    const cycleStartDate = fishConfig?.cycleStartDate.slice(0, 10);
+    if (!cycleStartDate) return fishMeasurements;
+
+    return fishMeasurements.filter((measurement) => {
+      if (measurement.cycleStartDate) {
+        return measurement.cycleStartDate.slice(0, 10) === cycleStartDate;
+      }
+      return measurement.date.slice(0, 10) >= cycleStartDate;
+    });
+  }, [fishConfig, fishMeasurements]);
 
   const fishAnalysis = useMemo<FishAnalysis>(() => {
     if (!fishConfig) {
@@ -573,12 +648,14 @@ export default function Analytics() {
       };
     }
 
-    const sorted = [...fishMeasurements].sort(
+    const sorted = [...currentFishMeasurements].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
     const currentWeight =
-      sorted.length > 0
+      fishConfig.status === "harvested"
+        ? 0
+        : sorted.length > 0
         ? sorted[sorted.length - 1].averageWeight
         : fishConfig.startingWeight;
 
@@ -632,9 +709,11 @@ export default function Analytics() {
         ? Math.min((currentWeight / fishConfig.targetWeight) * 100, 100)
         : 0;
 
-    let status = "Healthy";
+    let status = fishConfig.status === "harvested" ? "Harvested" : "Healthy";
 
-    if (progress >= 100) {
+    if (fishConfig.status === "harvested") {
+      estimatedDaysToTarget = 0;
+    } else if (progress >= 100) {
       status = "Target Reached";
     } else if (growthRatePerWeek <= 0) {
       status = "Needs Attention";
@@ -650,7 +729,7 @@ export default function Analytics() {
       progress: Number(progress.toFixed(1)),
       status,
     };
-  }, [fishConfig, fishMeasurements]);
+  }, [fishConfig, currentFishMeasurements]);
 
   /* =========================================================
      FISH CHART DATA
@@ -659,7 +738,7 @@ export default function Analytics() {
   const fishChartData = useMemo(() => {
     if (!fishConfig) return [];
 
-    const sorted = [...fishMeasurements].sort(
+    const sorted = [...currentFishMeasurements].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
@@ -692,30 +771,48 @@ export default function Analytics() {
         ideal: Number(idealWeight.toFixed(1)),
       };
     });
-  }, [fishConfig, fishMeasurements]);
+  }, [fishConfig, currentFishMeasurements]);
 
   /* =========================================================
      SEVEN-DAY RANDOM FOREST FORECAST
   ========================================================= */
 
   const sevenDayForecast = useMemo<ForecastPoint[]>(() => {
-    if (!forestModel || !fishMeasurements.length || !cropMeasurements.length) return [];
-    const fishHistory = [...fishMeasurements]
+    if (
+      !forestModel ||
+      !currentFishMeasurements.length ||
+      !currentCropMeasurements.length
+    )
+      return [];
+    const fishHistory = [...currentFishMeasurements]
       .filter((item) => item.date && Number.isFinite(item.averageWeight))
       .sort((a, b) => a.date.localeCompare(b.date));
-    const cropHistory = [...cropMeasurements]
+    const cropHistory = [...currentCropMeasurements]
       .filter((item) => item.date && Number.isFinite(item.heightCm))
       .sort((a, b) => a.date.localeCompare(b.date));
     if (!fishHistory.length || !cropHistory.length) return [];
 
     const fishLast = fishHistory[fishHistory.length - 1];
     const cropLast = cropHistory[cropHistory.length - 1];
-    const fishValues = fishHistory.map((item) => ({ date: item.date, value: item.averageWeight }));
-    const cropValues = cropHistory.map((item) => ({ date: item.date, value: item.heightCm }));
+    const fishValues = fishHistory.map((item) => ({
+      date: item.date,
+      value: item.averageWeight,
+    }));
+    const cropValues = cropHistory.map((item) => ({
+      date: item.date,
+      value: item.heightCm,
+    }));
     const today = new Date();
-    const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
     const firstDate = new Date(`${fishHistory[0].date}T00:00:00`);
-    const dayIndex = Math.max(0, Math.floor((startDate.getTime() - firstDate.getTime()) / 86400000));
+    const dayIndex = Math.max(
+      0,
+      Math.floor((startDate.getTime() - firstDate.getTime()) / 86400000),
+    );
     const features = [
       fishLast.averageWeight,
       averageDailySlope(fishValues, 3),
@@ -735,16 +832,30 @@ export default function Analytics() {
       const target = new Date(startDate);
       target.setDate(target.getDate() + day);
       const date = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`;
-      const predictedFish = predictWithForest(forestModel, `fish_${day}d`, features);
-      const predictedCrop = predictWithForest(forestModel, `crop_${day}d`, features);
+      const predictedFish = predictWithForest(
+        forestModel,
+        `fish_${day}d`,
+        features,
+      );
+      const predictedCrop = predictWithForest(
+        forestModel,
+        `crop_${day}d`,
+        features,
+      );
       return {
         date,
         day,
-        fishWeight: Math.max(0, Number((predictedFish ?? fishLast.averageWeight).toFixed(1))),
-        cropHeight: Math.max(0, Number((predictedCrop ?? cropLast.heightCm).toFixed(1))),
+        fishWeight: Math.max(
+          0,
+          Number((predictedFish ?? fishLast.averageWeight).toFixed(1)),
+        ),
+        cropHeight: Math.max(
+          0,
+          Number((predictedCrop ?? cropLast.heightCm).toFixed(1)),
+        ),
       };
     });
-  }, [forestModel, fishMeasurements, cropMeasurements, sensorData]);
+  }, [forestModel, currentFishMeasurements, currentCropMeasurements, sensorData]);
 
   /* =========================================================
      CROP PREDICTION
@@ -761,12 +872,12 @@ export default function Analytics() {
   ========================================================= */
 
   const cropChartData = useMemo(() => {
-    return cropMeasurements.map((measurement) => ({
+    return currentCropMeasurements.map((measurement) => ({
       date: measurement.date,
       height: measurement.heightCm,
       leaves: measurement.leafCount ?? null,
     }));
-  }, [cropMeasurements]);
+  }, [currentCropMeasurements]);
 
   /* =========================================================
      LOADING
@@ -828,17 +939,15 @@ export default function Analytics() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-display font-bold text-slate-900">
-              AI & Predictive Analytics
-            </h1>
-
             <span className="px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100 text-xs font-bold">
-              Random Forest · 7-Day Forecast
+              Random Forest · 7-Day Prediction Forecast
             </span>
           </div>
 
           <p className="text-slate-500 mt-1">
-            Historical charts and sensor inputs are loaded from Firebase. Seven-day fish-weight and crop-height forecasts use the trained Random Forest model.
+            Historical charts and sensor inputs are loaded from Firebase.
+            Seven-day fish-weight and crop-height forecasts use the trained
+            Random Forest model.
           </p>
         </div>
 
@@ -961,10 +1070,6 @@ export default function Analytics() {
             <span className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider">
               Growth Prediction
             </span>
-
-            <span className="text-cyan-100 text-sm">
-              Based on Firebase measurements
-            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1013,7 +1118,9 @@ export default function Analytics() {
           </div>
 
           <p className="mt-5 text-sm text-cyan-50 max-w-3xl">
-            {fishAnalysis.status === "Target Reached"
+            {fishAnalysis.status === "Harvested"
+              ? "This batch has been harvested. Its measurements remain saved; start a new batch to track new growth."
+              : fishAnalysis.status === "Target Reached"
               ? "The current fish weight has reached the configured target weight."
               : fishAnalysis.status === "Needs Attention"
                 ? "No positive growth rate can currently be calculated. Add more fish measurements to improve the prediction."
@@ -1266,52 +1373,85 @@ export default function Analytics() {
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-5">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-lg sm:text-xl font-bold text-slate-900">7-Day Growth Forecast</h2>
-              <span className="px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 text-[10px] sm:text-xs font-bold">RANDOM FOREST</span>
+              <h2 className="font-display text-lg sm:text-xl font-bold text-slate-900">
+                7-Day Growth Forecast
+              </h2>
+              <span className="px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-800 text-[10px] sm:text-xs font-bold">
+                RANDOM FOREST
+              </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">Random Forest estimates for fish average weight and crop height.</p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Random Forest estimates for fish average weight and crop height.
+            </p>
           </div>
-          <span className="text-xs text-slate-500">Model trained through {forestModel?.trainedThrough || "demo dataset"}</span>
-        </div>
-
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 mb-5 flex items-start gap-2.5">
-          <AlertCircle size={19} className="text-slate-600 mt-0.5 shrink-0" />
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
-            The model uses the imported Firebase dataset, which includes simulated readings. Forecast accuracy has not yet been validated against observed farm outcomes.
-          </p>
+          <span className="text-xs text-slate-500">
+            Model trained through{" "}
+            {forestModel?.trainedThrough || "demo dataset"}
+          </span>
         </div>
 
         {modelLoadError ? (
-          <p className="text-sm text-red-600">{modelLoadError} Check that public/randomForestModel.json exists in the frontend project.</p>
+          <p className="text-sm text-red-600">
+            {modelLoadError} Check that public/randomForestModel.json exists in
+            the frontend project.
+          </p>
         ) : sevenDayForecast.length === 0 ? (
-          <div className="py-8 text-center text-sm text-slate-500">Loading the model or waiting for fish and crop measurements...</div>
+          <div className="py-8 text-center text-sm text-slate-500">
+            Loading the model or waiting for fish and crop measurements...
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
               <div>
-                <h3 className="font-bold text-slate-800 mb-3">Predicted Fish Average Weight</h3>
+                <h3 className="font-bold text-slate-800 mb-3">
+                  Predicted Fish Average Weight
+                </h3>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={sevenDayForecast}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#e2e8f0"
+                      />
                       <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                       <YAxis unit=" g" tick={{ fontSize: 10 }} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="fishWeight" name="Predicted weight" stroke="#0891b2" strokeWidth={3} dot={{ r: 3 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="fishWeight"
+                        name="Predicted weight"
+                        stroke="#0891b2"
+                        strokeWidth={3}
+                        dot={{ r: 3 }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
               <div>
-                <h3 className="font-bold text-slate-800 mb-3">Predicted Crop Height</h3>
+                <h3 className="font-bold text-slate-800 mb-3">
+                  Predicted Crop Height
+                </h3>
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={sevenDayForecast}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#e2e8f0"
+                      />
                       <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                       <YAxis unit=" cm" tick={{ fontSize: 10 }} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="cropHeight" name="Predicted height" stroke="#059669" strokeWidth={3} dot={{ r: 3 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="cropHeight"
+                        name="Predicted height"
+                        stroke="#059669"
+                        strokeWidth={3}
+                        dot={{ r: 3 }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -1321,21 +1461,41 @@ export default function Analytics() {
             <div className="overflow-x-auto mt-5">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase text-slate-500 bg-slate-50">
-                  <tr><th className="px-3 py-3 rounded-l-lg">Forecast date</th><th className="px-3 py-3">Day</th><th className="px-3 py-3">Fish weight (g)</th><th className="px-3 py-3 rounded-r-lg">Crop height (cm)</th></tr>
+                  <tr>
+                    <th className="px-3 py-3 rounded-l-lg">Forecast date</th>
+                    <th className="px-3 py-3">Day</th>
+                    <th className="px-3 py-3">Fish weight (g)</th>
+                    <th className="px-3 py-3 rounded-r-lg">Crop height (cm)</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {sevenDayForecast.map((point) => (
-                    <tr key={point.date} className="border-b border-slate-100 last:border-0">
-                      <td className="px-3 py-3 font-medium text-slate-700">{point.date}</td>
-                      <td className="px-3 py-3 text-slate-600">Day {point.day}</td>
-                      <td className="px-3 py-3 font-semibold text-cyan-700">{point.fishWeight.toFixed(1)}</td>
-                      <td className="px-3 py-3 font-semibold text-emerald-700">{point.cropHeight.toFixed(1)}</td>
+                    <tr
+                      key={point.date}
+                      className="border-b border-slate-100 last:border-0"
+                    >
+                      <td className="px-3 py-3 font-medium text-slate-700">
+                        {point.date}
+                      </td>
+                      <td className="px-3 py-3 text-slate-600">
+                        Day {point.day}
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-cyan-700">
+                        {point.fishWeight.toFixed(1)}
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-emerald-700">
+                        {point.cropHeight.toFixed(1)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-slate-400 mt-3">Daily sensor inputs: pH, water temperature, ammonia, and dissolved oxygen. If a sensor channel has no stored readings, a neutral fallback value is used.</p>
+            <p className="text-[11px] text-slate-400 mt-3">
+              Daily sensor inputs: pH, water temperature, ammonia, and dissolved
+              oxygen. If a sensor channel has no stored readings, a neutral
+              fallback value is used.
+            </p>
           </>
         )}
       </section>
@@ -1460,7 +1620,7 @@ export default function Analytics() {
           </p>
 
           <p className="text-3xl font-display font-bold text-slate-900 mt-1">
-            {fishMeasurements.length}
+            {currentFishMeasurements.length}
           </p>
 
           <p className="text-xs text-slate-500 mt-1">records from Firebase</p>
@@ -1472,7 +1632,7 @@ export default function Analytics() {
           </p>
 
           <p className="text-3xl font-display font-bold text-slate-900 mt-1">
-            {cropMeasurements.length}
+            {currentCropMeasurements.length}
           </p>
 
           <p className="text-xs text-slate-500 mt-1">records from Firebase</p>

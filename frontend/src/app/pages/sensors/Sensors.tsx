@@ -144,15 +144,18 @@ BATTERY
 ==================================================
 */
 
+const MIN_BATTERY_VOLTAGE = 8.4;
+const MAX_BATTERY_VOLTAGE = 12.6;
+
 function batteryPercentage(voltage: number | null): number | null {
   if (voltage === null || !Number.isFinite(voltage)) {
     return null;
   }
 
-  const minVoltage = 8.4;
-  const maxVoltage = 12.6;
-
-  const percentage = ((voltage - minVoltage) / (maxVoltage - minVoltage)) * 100;
+  const percentage =
+    ((voltage - MIN_BATTERY_VOLTAGE) /
+      (MAX_BATTERY_VOLTAGE - MIN_BATTERY_VOLTAGE)) *
+    100;
 
   return Math.max(0, Math.min(100, percentage));
 }
@@ -965,7 +968,11 @@ export default function Sensors() {
         icon: <Battery size={28} />,
         status: getSensorStatus(
           liveData.batteryVoltage,
-          sensorConfiguration?.batteryVoltage,
+          {
+            low: MIN_BATTERY_VOLTAGE,
+            high: MAX_BATTERY_VOLTAGE,
+            unit: "V",
+          },
           isOffline,
         ),
         displayValue:

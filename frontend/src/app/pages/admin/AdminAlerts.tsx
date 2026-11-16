@@ -24,6 +24,8 @@ interface AlertRow {
   severity: string;
   time: string;
   read: boolean;
+  recipientCount: number;
+  unreadRecipients: number;
 }
 
 export default function AdminAlerts() {
@@ -213,6 +215,9 @@ export default function AdminAlerts() {
                     >
                       {alert.read ? <Eye size={12} /> : <EyeOff size={12} />}
                       {alert.read ? "Read" : "Unread"}
+                    </span>
+                    <span className="text-slate-400">
+                      {alert.unreadRecipients} of {alert.recipientCount} unread
                     </span>
                   </div>
                 </div>

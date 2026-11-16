@@ -13,9 +13,14 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\PasswordResetController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [PasswordResetController::class, 'requestReset'])
+    ->middleware('throttle:5,1');
+Route::post('/reset-password', [PasswordResetController::class, 'reset'])
+    ->middleware('throttle:10,1');
 Route::post('/auth/google/exchange', [GoogleAuthController::class, 'exchange'])
     ->middleware('throttle:10,1');
 

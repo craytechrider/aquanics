@@ -151,17 +151,12 @@ export default function Login() {
                 Password
               </label>
 
-              <button
-                type="button"
-                onClick={() =>
-                  alert(
-                    "Please contact your system administrator to reset your password.",
-                  )
-                }
+              <Link
+                to="/forgot-password"
                 className="text-xs font-bold text-emerald-300 hover:text-emerald-200"
               >
-                Forgot?
-              </button>
+                Forgot Password?
+              </Link>
             </div>
 
             <div className="relative group">

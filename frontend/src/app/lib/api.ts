@@ -70,6 +70,16 @@ export const authApi = {
   register: (data: { name: string; email: string; password: string }) =>
     api.post("/register", data),
 
+  requestPasswordReset: (email: string) =>
+    api.post("/forgot-password", { email }),
+
+  resetPassword: (data: {
+    email: string;
+    token: string;
+    password: string;
+    password_confirmation: string;
+  }) => api.post("/reset-password", data),
+
   logout: () => api.post("/logout"),
 
   getUser: () => api.get("/user"),

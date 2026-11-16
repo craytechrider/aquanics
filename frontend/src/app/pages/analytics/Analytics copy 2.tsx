@@ -903,7 +903,7 @@ export default function Analytics() {
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-display font-bold text-slate-900">
-              AI & Predictive Analytics
+              Predictive Forecasting
             </h1>
 
             <span className="px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-100 text-xs font-bold">

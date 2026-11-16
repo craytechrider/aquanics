@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\User;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Alert extends Model
 {
@@ -23,6 +23,7 @@ class Alert extends Model
         'sms_sent',
         'push_sent',
         'resolved_at',
+        'active_key',
     ];
 
     protected $casts = [
@@ -40,5 +41,10 @@ class Alert extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function recipients(): HasMany
+    {
+        return $this->hasMany(AlertRecipient::class);
     }
 }

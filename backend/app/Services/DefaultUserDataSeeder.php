@@ -29,15 +29,6 @@ class DefaultUserDataSeeder
             $user->systemDevices()->create($device);
         }
 
-        $alerts = [
-            ['title' => 'Low Oxygen Warning', 'message' => 'Dissolved Oxygen dropped below 5.0 mg/L in Tank 2.', 'severity' => 'warning'],
-            ['title' => 'System Online', 'message' => 'All systems are running normally.', 'severity' => 'success'],
-            ['title' => 'Feeder Refill Needed', 'message' => 'Main feeder is below 10% capacity.', 'severity' => 'info'],
-        ];
-        foreach ($alerts as $alert) {
-            $user->alerts()->create($alert);
-        }
-
         $rules = [
             ['name' => 'Maintain pH Level', 'condition_text' => 'If pH < 6.5', 'action' => 'Turn on pH Up Pump', 'sensor' => 'pH Level', 'condition_operator' => 'Less than', 'condition_value' => 6.5, 'active' => true],
             ['name' => 'Emergency Aeration', 'condition_text' => 'If DO < 4.0 mg/L', 'action' => 'Turn on Backup Aerator', 'sensor' => 'Dissolved Oxygen', 'condition_operator' => 'Less than', 'condition_value' => 4.0, 'active' => true],
@@ -53,17 +44,6 @@ class DefaultUserDataSeeder
         ];
         foreach ($schedules as $schedule) {
             $user->feedingSchedules()->create($schedule);
-        }
-
-        $reports = [
-            ['name' => 'Monthly Performance Summary', 'date_label' => 'Feb 2026', 'size' => '2.4 MB', 'type' => 'PDF'],
-            ['name' => 'Water Quality Compliance', 'date_label' => 'Jan 2026', 'size' => '1.8 MB', 'type' => 'PDF'],
-            ['name' => 'Yield & Harvest Report', 'date_label' => 'Q4 2025', 'size' => '4.2 MB', 'type' => 'CSV'],
-            ['name' => 'System Maintenance Log', 'date_label' => '2025 Annual', 'size' => '1.1 MB', 'type' => 'PDF'],
-            ['name' => 'Sensor Calibration Data', 'date_label' => 'Dec 2025', 'size' => '0.8 MB', 'type' => 'CSV'],
-        ];
-        foreach ($reports as $report) {
-            $user->reports()->create($report);
         }
 
         $uid = strtoupper(substr(md5($user->id.now()->timestamp), 0, 8));

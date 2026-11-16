@@ -22,3 +22,18 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Environment files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Vite cache
+.vite/
+**/.vite/
+
+# Private Firebase credentials
+firebase-service-account.json

@@ -28,6 +28,12 @@ import {
   SENSOR_STATUS_PRESENTATION,
   type SensorStatus,
 } from "../../lib/sensorStatus";
+import {
+  formatSensorHistoryLabel,
+  readSensorHistory,
+  type SensorHistoryPoint,
+} from "../../lib/sensorHistory";
+import WeatherWidget from "../../components/WeatherWidget";
 
 import bgImage from "../../../assets/236227259a39f8fc98372b0db000196c5ed358d0.png";
 
@@ -101,63 +107,6 @@ const DEVICE_CONFIG: Record<
 /* =========================================================
    FIREBASE HISTORY TYPES
 ========================================================= */
-
-interface HistoryPoint {
-  time: string;
-  value: number;
-}
-
-interface SensorHistory {
-  [date: string]: {
-    [time: string]: number;
-  };
-}
-
-/* =========================================================
-   GET FIREBASE HISTORY FOR THE SELECTED TIME RANGE
-========================================================= */
-
-function getHistory(
-  sensor: SensorHistory | undefined,
-  rangeHours: number,
-  limit = 500,
-): HistoryPoint[] {
-  if (!sensor || limit <= 0) return [];
-
-  const cutoff = Date.now() - rangeHours * 60 * 60 * 1000;
-  const newestFirst: HistoryPoint[] = [];
-  const dates = Object.keys(sensor).sort().reverse();
-
-  for (const date of dates) {
-    const readings = sensor[date];
-    if (!readings) continue;
-
-    const times = Object.keys(readings).sort().reverse();
-
-    for (const time of times) {
-      const value = readings[time];
-      if (typeof value !== "number" || !Number.isFinite(value)) continue;
-
-      const normalizedTime = time.replace(/-/g, ":");
-      const timestamp = new Date(`${date}T${normalizedTime}`).getTime();
-      if (!Number.isFinite(timestamp) || timestamp < cutoff) {
-        // Since dates and times are visited newest-first, older readings can stop this date.
-        continue;
-      }
-
-      newestFirst.push({
-        time: `${date} ${normalizedTime}`,
-        value,
-      });
-
-      if (newestFirst.length >= limit) {
-        return newestFirst.reverse();
-      }
-    }
-  }
-
-  return newestFirst.reverse();
-}
 
 /* =========================================================
    BATTERY VOLTAGE
@@ -461,11 +410,11 @@ export default function Dashboard() {
     const ammoniaRef = ref(db, "sensors/ammonia");
     const waterRef = ref(db, "sensors/waterPercent");
 
-    let phHistory: HistoryPoint[] = [];
-    let doHistory: HistoryPoint[] = [];
-    let tempHistory: HistoryPoint[] = [];
-    let ammoniaHistory: HistoryPoint[] = [];
-    let waterHistory: HistoryPoint[] = [];
+    let phHistory: SensorHistoryPoint[] = [];
+    let doHistory: SensorHistoryPoint[] = [];
+    let tempHistory: SensorHistoryPoint[] = [];
+    let ammoniaHistory: SensorHistoryPoint[] = [];
+    let waterHistory: SensorHistoryPoint[] = [];
 
     const rebuildChart = () => {
       // Build maps once instead of repeatedly searching arrays.
@@ -517,27 +466,27 @@ export default function Dashboard() {
     };
 
     const unsubscribePH = onValue(phRef, (snapshot) => {
-      phHistory = getHistory(snapshot.val(), chartRangeHours, 500);
+      phHistory = readSensorHistory(snapshot.val(), chartRangeHours);
       rebuildChart();
     });
 
     const unsubscribeDO = onValue(doRef, (snapshot) => {
-      doHistory = getHistory(snapshot.val(), chartRangeHours, 500);
+      doHistory = readSensorHistory(snapshot.val(), chartRangeHours);
       rebuildChart();
     });
 
     const unsubscribeTemp = onValue(tempRef, (snapshot) => {
-      tempHistory = getHistory(snapshot.val(), chartRangeHours, 500);
+      tempHistory = readSensorHistory(snapshot.val(), chartRangeHours);
       rebuildChart();
     });
 
     const unsubscribeAmmonia = onValue(ammoniaRef, (snapshot) => {
-      ammoniaHistory = getHistory(snapshot.val(), chartRangeHours, 500);
+      ammoniaHistory = readSensorHistory(snapshot.val(), chartRangeHours);
       rebuildChart();
     });
 
     const unsubscribeWater = onValue(waterRef, (snapshot) => {
-      waterHistory = getHistory(snapshot.val(), chartRangeHours, 500);
+      waterHistory = readSensorHistory(snapshot.val(), chartRangeHours);
       rebuildChart();
     });
 
@@ -588,8 +537,8 @@ export default function Dashboard() {
           DASHBOARD HEADER
       =================================================== */}
 
-      <div className="relative z-10 flex flex-col gap-1 sm:gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
+      <div className="relative z-10 flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-display font-bold tracking-tight text-slate-900 sm:text-3xl">
             Dashboard
             <span className="text-emerald-500">.</span>
@@ -605,6 +554,7 @@ export default function Dashboard() {
             </p>
           )}
         </div>
+        <WeatherWidget />
       </div>
 
       {/* ===================================================
@@ -842,8 +792,15 @@ export default function Dashboard() {
                 <option value={24}>Last 24 hours</option>
                 <option value={72}>Last 3 days</option>
                 <option value={168}>Last 7 days</option>
+                <option value={720}>Last 30 days</option>
               </select>
             </div>
+            {chartRangeHours === 720 && (
+              <p className="text-xs text-slate-400">
+                Daily averages use recorded readings only; dates without stored
+                history are not filled in.
+              </p>
+            )}
 
             {/* =================================================
                 TABS
@@ -1125,13 +1082,7 @@ export default function Dashboard() {
                         fontWeight: 500,
                       }}
                       tickFormatter={(value) => {
-                        const parts = String(value).split(" ");
-
-                        if (parts.length < 2) {
-                          return value;
-                        }
-
-                        return parts[1].substring(0, 5);
+                        return formatSensorHistoryLabel(String(value));
                       }}
                       dy={8}
                       interval="preserveStartEnd"

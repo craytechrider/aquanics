@@ -7,10 +7,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Notifications\AquanicsPasswordResetNotification;
 
 class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens;
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new AquanicsPasswordResetNotification($token));
+    }
 
     protected $fillable = [
         'name',

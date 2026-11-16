@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Save,
   Loader2,
   Sprout,
   Fish,
@@ -16,7 +15,7 @@ import {
   PackageCheck,
 } from "lucide-react";
 
-import { onValue, push, ref, remove, set } from "firebase/database";
+import { onValue, push, ref, remove, set, update } from "firebase/database";
 
 import { db } from "../../../firebase";
 import { cn } from "../../lib/utils";
@@ -44,6 +43,7 @@ interface FishConfig {
   startingWeight: number;
   targetWeight: number;
   numberOfFish: number;
+  cycleStartDate?: string;
 
   // Date information
   date?: string;
@@ -55,6 +55,7 @@ interface FishMeasurement {
   id: string;
   date: string;
   averageWeight: number;
+  cycleStartDate?: string;
   notes?: string;
   createdAt?: string;
 }
@@ -144,14 +145,6 @@ export default function GrowthManagement() {
 
   const [loading, setLoading] = useState(true);
 
-  const [savingCrop, setSavingCrop] = useState(false);
-
-  const [savingFish, setSavingFish] = useState(false);
-
-  const [cropSaved, setCropSaved] = useState(false);
-
-  const [fishSaved, setFishSaved] = useState(false);
-
   /* =======================================================
      TABS
   ======================================================= */
@@ -194,6 +187,13 @@ export default function GrowthManagement() {
   const [harvestNotes, setHarvestNotes] = useState("");
   const [harvestDate, setHarvestDate] = useState(getLocalDate());
   const [newCycleDate, setNewCycleDate] = useState(getLocalDate());
+  const [newCycleCropType, setNewCycleCropType] = useState(DEFAULT_CROP.type);
+  const [newCycleTargetHarvestDays, setNewCycleTargetHarvestDays] = useState(
+    String(DEFAULT_CROP.targetHarvestDays),
+  );
+  const [newCycleTargetYield, setNewCycleTargetYield] = useState(
+    String(DEFAULT_CROP.targetYield),
+  );
   const [initialCropHeight, setInitialCropHeight] = useState("");
   const [newCycleNotes, setNewCycleNotes] = useState("");
   const [cropCycleStatus, setCropCycleStatus] = useState<"active" | "harvested">("active");
@@ -205,8 +205,11 @@ export default function GrowthManagement() {
   const [fishHarvestAverageWeight, setFishHarvestAverageWeight] = useState("");
   const [fishHarvestNotes, setFishHarvestNotes] = useState("");
   const [newFishBatchDate, setNewFishBatchDate] = useState(getLocalDate());
+  const [newFishSpecies, setNewFishSpecies] = useState(DEFAULT_FISH.species);
   const [newFishBatchCount, setNewFishBatchCount] = useState("");
   const [newFishStartingWeight, setNewFishStartingWeight] = useState("");
+  const [newFishStartingWeeks, setNewFishStartingWeeks] = useState("0");
+  const [newFishTargetWeight, setNewFishTargetWeight] = useState("");
   const [newFishBatchNotes, setNewFishBatchNotes] = useState("");
   const [fishBatchStatus, setFishBatchStatus] = useState<"active" | "harvested">("active");
   const [fishHarvests, setFishHarvests] = useState<any[]>([]);
@@ -252,6 +255,13 @@ export default function GrowthManagement() {
             ...DEFAULT_CROP,
             ...data,
           });
+          setNewCycleCropType(data.type || DEFAULT_CROP.type);
+          setNewCycleTargetHarvestDays(
+            String(data.targetHarvestDays ?? DEFAULT_CROP.targetHarvestDays),
+          );
+          setNewCycleTargetYield(
+            String(data.targetYield ?? DEFAULT_CROP.targetYield),
+          );
         }
 
         cropLoaded = true;
@@ -281,6 +291,8 @@ export default function GrowthManagement() {
             ...DEFAULT_FISH,
             ...data,
           });
+          setNewFishSpecies(data.species || DEFAULT_FISH.species);
+          setFishBatchStatus(data.status === "harvested" ? "harvested" : "active");
         }
 
         fishLoaded = true;
@@ -454,11 +466,27 @@ export default function GrowthManagement() {
      CURRENT FISH WEIGHT
   ========================================================= */
 
+  const currentFishMeasurements = useMemo(() => {
+    if (fishBatchStatus === "harvested") return [];
+
+    const cycleStartDate = (fish.cycleStartDate || fish.date || "").slice(0, 10);
+    if (!cycleStartDate) return fishMeasurements;
+
+    return fishMeasurements.filter((measurement) => {
+      if (measurement.cycleStartDate) {
+        return measurement.cycleStartDate.slice(0, 10) === cycleStartDate;
+      }
+      return measurement.date.slice(0, 10) >= cycleStartDate;
+    });
+  }, [fish, fishBatchStatus, fishMeasurements]);
+
   const latestFishMeasurement =
-    fishMeasurements.length > 0 ? fishMeasurements[0] : null;
+    currentFishMeasurements.length > 0 ? currentFishMeasurements[0] : null;
 
   const currentFishWeight =
-    latestFishMeasurement?.averageWeight ?? fish.startingWeight;
+    fishBatchStatus === "harvested"
+      ? 0
+      : latestFishMeasurement?.averageWeight ?? fish.startingWeight;
 
   /* =========================================================
      FISH GROWTH PROGRESS
@@ -487,116 +515,15 @@ export default function GrowthManagement() {
       : 0;
 
   /* =========================================================
-     SAVE CROP CONFIGURATION
-  ========================================================= */
-
-  const handleSaveCrop = async () => {
-    setSavingCrop(true);
-
-    setCropSaved(false);
-
-    try {
-      const now = new Date().toISOString();
-
-      const today = getLocalDate();
-
-      const updatedCrop: CropConfig = {
-        ...crop,
-
-        ageDays: calculateCropAge(),
-
-        /*
-         * Date the configuration was saved.
-         */
-        date: today,
-
-        /*
-         * Keep createdAt if it already exists.
-         * Otherwise create it now.
-         */
-        createdAt: crop.createdAt || now,
-
-        /*
-         * Always update this whenever configuration
-         * is saved.
-         */
-        updatedAt: now,
-      };
-
-      await set(ref(db, "configuration/crop"), updatedCrop);
-
-      setCrop(updatedCrop);
-
-      setCropSaved(true);
-
-      setTimeout(() => {
-        setCropSaved(false);
-      }, 2500);
-    } catch (error) {
-      console.error("Failed to save crop configuration:", error);
-
-      alert("Failed to save crop configuration.");
-    } finally {
-      setSavingCrop(false);
-    }
-  };
-
-  /* =========================================================
-     SAVE FISH CONFIGURATION
-  ========================================================= */
-
-  const handleSaveFish = async () => {
-    setSavingFish(true);
-
-    setFishSaved(false);
-
-    try {
-      const now = new Date().toISOString();
-
-      const today = getLocalDate();
-
-      const updatedFish: FishConfig = {
-        ...fish,
-
-        /*
-         * Date the configuration was saved.
-         */
-        date: today,
-
-        /*
-         * Preserve original creation date.
-         */
-        createdAt: fish.createdAt || now,
-
-        /*
-         * Update every time configuration changes.
-         */
-        updatedAt: now,
-      };
-
-      await set(ref(db, "configuration/fish"), updatedFish);
-
-      setFish(updatedFish);
-
-      setFishSaved(true);
-
-      setTimeout(() => {
-        setFishSaved(false);
-      }, 2500);
-    } catch (error) {
-      console.error("Failed to save fish configuration:", error);
-
-      alert("Failed to save fish configuration.");
-    } finally {
-      setSavingFish(false);
-    }
-  };
-
-  /* =========================================================
      ADD FISH MEASUREMENT
   ========================================================= */
 
   const handleAddFishMeasurement = async () => {
+    if (fishBatchStatus === "harvested") {
+      alert("This fish batch has been harvested. Start a new batch before adding measurements.");
+      return;
+    }
+
     if (!newFishWeight) {
       alert("Please enter the fish weight.");
 
@@ -630,6 +557,8 @@ export default function GrowthManagement() {
         date: newFishDate,
 
         averageWeight: weight,
+
+        cycleStartDate: fish.cycleStartDate || fish.date || newFishDate,
 
         notes: newFishNotes.trim(),
 
@@ -710,6 +639,8 @@ export default function GrowthManagement() {
         date: newCropDate,
 
         height,
+
+        cyclePlantingDate: crop.plantingDate,
 
         notes: newCropNotes.trim(),
 
@@ -825,6 +756,26 @@ export default function GrowthManagement() {
       return;
     }
 
+    const targetHarvestDays = Number(newCycleTargetHarvestDays);
+    if (
+      !newCycleTargetHarvestDays ||
+      !Number.isInteger(targetHarvestDays) ||
+      targetHarvestDays <= 0
+    ) {
+      alert("Enter a target harvest time as a positive number of days.");
+      return;
+    }
+
+    const targetYield = Number(newCycleTargetYield);
+    if (
+      newCycleTargetYield.trim() === "" ||
+      !Number.isFinite(targetYield) ||
+      targetYield < 0
+    ) {
+      alert("Enter a target yield of zero or more kilograms.");
+      return;
+    }
+
     const initialHeight = initialCropHeight.trim() === "" ? null : Number(initialCropHeight);
     if (initialHeight !== null && (!Number.isFinite(initialHeight) || initialHeight < 0)) {
       alert("Initial plant height must be zero or greater.");
@@ -841,20 +792,27 @@ export default function GrowthManagement() {
       const now = new Date().toISOString();
       const updatedCrop: CropConfig = {
         ...crop,
+        type: newCycleCropType,
         plantingDate: newCycleDate,
         ageDays: 0,
+        targetHarvestDays,
+        targetYield,
         date: newCycleDate,
         createdAt: now,
         updatedAt: now,
       };
 
-      await set(ref(db, "configuration/crop"), updatedCrop);
-      await set(ref(db, "configuration/crop/status"), "active");
-      await set(ref(db, "configuration/crop/lastHarvestDate"), null);
-
+      const updates: Record<string, unknown> = {
+        "configuration/crop": updatedCrop,
+        "configuration/crop/status": "active",
+        "configuration/crop/lastHarvestDate": null,
+      };
       if (initialHeight !== null) {
         const measurementRef = push(ref(db, "growthMeasurements/crop"));
-        await set(measurementRef, {
+        if (!measurementRef.key) {
+          throw new Error("Could not create a key for the initial crop measurement.");
+        }
+        updates[`growthMeasurements/crop/${measurementRef.key}`] = {
           date: newCycleDate,
           height: initialHeight,
           notes: newCycleNotes.trim()
@@ -862,8 +820,9 @@ export default function GrowthManagement() {
             : "Initial measurement for new crop cycle",
           cyclePlantingDate: newCycleDate,
           createdAt: now,
-        });
+        };
       }
+      await update(ref(db), updates);
 
       setCrop(updatedCrop);
       setCropCycleStatus("active");
@@ -931,42 +890,64 @@ export default function GrowthManagement() {
     if (!newFishBatchDate) return alert("Please select the new batch date.");
     const count = Number(newFishBatchCount);
     const startingWeight = Number(newFishStartingWeight);
+    const startingWeeks = Number(newFishStartingWeeks);
+    const targetWeight = Number(newFishTargetWeight);
     if (!newFishBatchCount || !Number.isInteger(count) || count <= 0) return alert("Enter the number of fish stocked.");
     if (!newFishStartingWeight || !Number.isFinite(startingWeight) || startingWeight <= 0) return alert("Enter the initial average weight per fish in grams.");
+    if (!newFishStartingWeeks || !Number.isFinite(startingWeeks) || startingWeeks < 0) return alert("Enter a starting age of zero or more weeks.");
+    if (!newFishTargetWeight || !Number.isFinite(targetWeight) || targetWeight <= 0) return alert("Enter the target average weight per fish in grams.");
     if (!window.confirm("Start a new fish batch? Previous measurements and harvest records will remain saved.")) return;
 
     setStartingFishBatch(true);
     try {
       const now = new Date().toISOString();
-      const updatedFish = {
+      const updatedFish: FishConfig = {
         ...fish,
-        ageWeeks: 0,
+        species: newFishSpecies,
+        ageWeeks: startingWeeks,
         startingWeight,
+        targetWeight,
         numberOfFish: count,
         cycleStartDate: newFishBatchDate,
         date: newFishBatchDate,
         createdAt: now,
         updatedAt: now,
       };
-      await set(ref(db, "configuration/fish"), updatedFish);
-      await set(ref(db, "configuration/fish/status"), "active");
-      await set(ref(db, "configuration/fish/lastHarvestDate"), null);
       const measurementRef = push(ref(db, "growthMeasurements/fish"));
-      await set(measurementRef, {
+      if (!measurementRef.key) {
+        throw new Error("Could not create a key for the initial fish measurement.");
+      }
+      const initialMeasurement = {
         date: newFishBatchDate,
         averageWeight: startingWeight,
         notes: newFishBatchNotes.trim() ? `Initial measurement for new fish batch: ${newFishBatchNotes.trim()}` : "Initial measurement for new fish batch",
         cycleStartDate: newFishBatchDate,
         createdAt: now,
+      };
+      await update(ref(db), {
+        "configuration/fish/species": updatedFish.species,
+        "configuration/fish/ageWeeks": updatedFish.ageWeeks,
+        "configuration/fish/startingWeight": updatedFish.startingWeight,
+        "configuration/fish/targetWeight": updatedFish.targetWeight,
+        "configuration/fish/numberOfFish": updatedFish.numberOfFish,
+        "configuration/fish/cycleStartDate": newFishBatchDate,
+        "configuration/fish/date": newFishBatchDate,
+        "configuration/fish/createdAt": now,
+        "configuration/fish/updatedAt": now,
+        "configuration/fish/status": "active",
+        "configuration/fish/lastHarvestDate": null,
+        [`growthMeasurements/fish/${measurementRef.key}`]: initialMeasurement,
       });
-      setFish(updatedFish as any);
+      setFish(updatedFish);
       setFishBatchStatus("active");
       setNewFishBatchDate(getLocalDate());
       setNewFishBatchCount("");
       setNewFishStartingWeight("");
+      setNewFishStartingWeeks("0");
+      setNewFishTargetWeight("");
       setNewFishBatchNotes("");
       setActiveTab("fish");
-      alert("New fish batch started. Its age is reset and the initial weight has been recorded.");
+      alert("New fish batch started. Its starting age, weights, fish count, and initial measurement have been recorded.");
     } catch (error) {
       console.error("Failed to start new fish batch:", error);
       alert("Could not start the new fish batch. Check your Firebase connection and try again.");
@@ -1170,7 +1151,7 @@ export default function GrowthManagement() {
                   </p>
 
                   <p className="text-xl sm:text-2xl font-bold text-slate-800 mt-1">
-                    {fish.ageWeeks}
+                    {fishBatchStatus === "harvested" ? 0 : fish.ageWeeks}
 
                     <span className="text-sm font-medium text-slate-400 ml-1">
                       weeks
@@ -1247,175 +1228,6 @@ export default function GrowthManagement() {
 
       {activeTab === "fish" && (
         <>
-          {/* FISH CONFIGURATION */}
-
-          <div className="w-[94%] sm:w-[92%] lg:w-full mx-auto bg-white p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-5 sm:mb-7">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="p-2.5 sm:p-3 bg-cyan-50 text-cyan-600 rounded-xl">
-                  <Fish size={21} className="sm:w-6 sm:h-6" />
-                </div>
-
-                <div>
-                  <h2 className="font-display font-bold text-slate-800 text-base sm:text-lg">
-                    Fish Configuration
-                  </h2>
-
-                  <p className="text-xs text-slate-400 mt-1">
-                    Configure the fish batch used by analytics.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSaveFish}
-                disabled={savingFish}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl text-sm font-bold hover:shadow-lg disabled:opacity-50"
-              >
-                {savingFish ? (
-                  <Loader2 size={17} className="animate-spin" />
-                ) : (
-                  <Save size={17} />
-                )}
-
-                {fishSaved ? "Saved!" : savingFish ? "Saving..." : "Save Fish"}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-              {/* SPECIES */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Fish Species
-                </label>
-
-                <select
-                  value={fish.species}
-                  onChange={(e) =>
-                    setFish({
-                      ...fish,
-                      species: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-cyan-500"
-                >
-                  <option value="Tilapia">Tilapia</option>
-
-                  <option value="Catfish">Catfish</option>
-
-                  <option value="Trout">Trout</option>
-
-                  <option value="Koi">Koi</option>
-                </select>
-              </div>
-
-              {/* AGE */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Fish Age (Weeks)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  value={fish.ageWeeks}
-                  onChange={(e) =>
-                    setFish({
-                      ...fish,
-                      ageWeeks: Number(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-cyan-500"
-                />
-              </div>
-
-              {/* STARTING WEIGHT */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Starting Weight (g)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  value={fish.startingWeight}
-                  onChange={(e) =>
-                    setFish({
-                      ...fish,
-                      startingWeight: Number(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-cyan-500"
-                />
-              </div>
-
-              {/* TARGET WEIGHT */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Target Weight (g)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  value={fish.targetWeight}
-                  onChange={(e) =>
-                    setFish({
-                      ...fish,
-                      targetWeight: Number(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-cyan-500"
-                />
-              </div>
-
-              {/* NUMBER OF FISH */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Number of Fish
-                </label>
-
-                <input
-                  type="number"
-                  min="1"
-                  value={fish.numberOfFish}
-                  onChange={(e) =>
-                    setFish({
-                      ...fish,
-                      numberOfFish: Number(e.target.value) || 1,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-cyan-500"
-                />
-              </div>
-            </div>
-
-            {/* CONFIGURATION DATE */}
-
-            {fish.updatedAt && (
-              <div className="mt-4 sm:mt-6 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-cyan-50 border border-cyan-100">
-                <div className="flex items-center gap-3">
-                  <Calendar size={19} className="text-cyan-600" />
-
-                  <div>
-                    <p className="text-sm font-bold text-cyan-800">
-                      Last Updated
-                    </p>
-
-                    <p className="text-xs text-cyan-600 mt-1">
-                      {fish.date || "No date"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* FISH HARVEST AND NEW BATCH */}
           <div className="w-[94%] sm:w-[92%] lg:w-full mx-auto grid grid-cols-1 xl:grid-cols-2 gap-4">
             <div className="p-4 sm:p-5 rounded-2xl border border-amber-200 bg-amber-50/70">
@@ -1441,12 +1253,15 @@ export default function GrowthManagement() {
             <div className="p-4 sm:p-5 rounded-2xl border border-cyan-200 bg-cyan-50/70">
               <div className="flex items-start gap-3 mb-4">
                 <div className="p-2.5 rounded-xl bg-cyan-100 text-cyan-700"><RotateCcw size={21} /></div>
-                <div><h3 className="font-bold text-slate-800">Start New Fish Batch</h3><p className="text-xs text-slate-600 mt-1">Use when new fish are actually stocked. Previous records remain saved.</p></div>
+                <div><h3 className="font-bold text-slate-800">Start New Fish Batch</h3><p className="text-xs text-slate-600 mt-1">Set the new batch details when fish are stocked. Previous records remain saved.</p></div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><label className="block text-xs font-bold text-slate-600 mb-2">Fish Species</label><select value={newFishSpecies} onChange={(e) => setNewFishSpecies(e.target.value)} className="w-full px-3 py-3 bg-white border border-cyan-200 rounded-xl text-sm outline-none"><option value="Tilapia">Tilapia</option><option value="Catfish">Catfish</option><option value="Trout">Trout</option><option value="Koi">Koi</option></select></div>
                 <div><label className="block text-xs font-bold text-slate-600 mb-2">Stocking Date</label><input type="date" value={newFishBatchDate} onChange={(e) => setNewFishBatchDate(e.target.value)} className="w-full px-3 py-3 bg-white border border-cyan-200 rounded-xl text-sm outline-none" /></div>
                 <div><label className="block text-xs font-bold text-slate-600 mb-2">Number of Fish Stocked</label><input type="number" min="1" step="1" value={newFishBatchCount} onChange={(e) => setNewFishBatchCount(e.target.value)} placeholder="e.g. 50" className="w-full px-3 py-3 bg-white border border-cyan-200 rounded-xl text-sm outline-none" /></div>
                 <div><label className="block text-xs font-bold text-slate-600 mb-2">Initial Average Weight (g)</label><input type="number" min="0.1" step="0.1" value={newFishStartingWeight} onChange={(e) => setNewFishStartingWeight(e.target.value)} placeholder="e.g. 10" className="w-full px-3 py-3 bg-white border border-cyan-200 rounded-xl text-sm outline-none" /></div>
+                <div><label className="block text-xs font-bold text-slate-600 mb-2">Starting Age (weeks)</label><input type="number" min="0" step="0.1" value={newFishStartingWeeks} onChange={(e) => setNewFishStartingWeeks(e.target.value)} placeholder="e.g. 0" className="w-full px-3 py-3 bg-white border border-cyan-200 rounded-xl text-sm outline-none" /></div>
+                <div><label className="block text-xs font-bold text-slate-600 mb-2">Target Average Weight (g)</label><input type="number" min="0.1" step="0.1" value={newFishTargetWeight} onChange={(e) => setNewFishTargetWeight(e.target.value)} placeholder="e.g. 500" className="w-full px-3 py-3 bg-white border border-cyan-200 rounded-xl text-sm outline-none" /></div>
                 <div><label className="block text-xs font-bold text-slate-600 mb-2">Notes (optional)</label><input type="text" value={newFishBatchNotes} onChange={(e) => setNewFishBatchNotes(e.target.value)} placeholder="Fingerling source or batch notes" className="w-full px-3 py-3 bg-white border border-cyan-200 rounded-xl text-sm outline-none" /></div>
               </div>
               <button onClick={handleStartNewFishBatch} disabled={startingFishBatch} className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 text-white rounded-xl text-sm font-bold hover:bg-cyan-700 disabled:opacity-50">
@@ -1535,7 +1350,7 @@ export default function GrowthManagement() {
               <div className="flex items-end">
                 <button
                   onClick={handleAddFishMeasurement}
-                  disabled={savingFishMeasurement}
+                  disabled={savingFishMeasurement || fishBatchStatus === "harvested"}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-cyan-600 text-white rounded-xl text-sm font-bold hover:bg-cyan-700 disabled:opacity-50"
                 >
                   {savingFishMeasurement ? (
@@ -1551,20 +1366,24 @@ export default function GrowthManagement() {
             {/* FISH LIST */}
 
             <div className="space-y-3">
-              {fishMeasurements.length === 0 ? (
+              {currentFishMeasurements.length === 0 ? (
                 <div className="p-6 sm:p-8 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200">
                   <Scale size={30} className="mx-auto text-slate-300 mb-2" />
 
                   <p className="text-sm font-bold text-slate-500">
-                    No fish measurements yet
+                    {fishBatchStatus === "harvested"
+                      ? "This batch has been harvested"
+                      : "No fish measurements for this batch yet"}
                   </p>
 
                   <p className="text-xs text-slate-400 mt-1">
-                    Add your first weight measurement above.
+                    {fishBatchStatus === "harvested"
+                      ? "Start a new batch to record measurements. Previous records are preserved."
+                      : "Add a weight measurement for the current batch above."}
                   </p>
                 </div>
               ) : (
-                fishMeasurements.map((measurement) => (
+                currentFishMeasurements.map((measurement) => (
                   <div
                     key={measurement.id}
                     className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100"
@@ -1609,164 +1428,15 @@ export default function GrowthManagement() {
 
       {activeTab === "crop" && (
         <>
-          {/* CROP CONFIGURATION */}
-
-          <div className="w-[94%] sm:w-[92%] lg:w-full mx-auto bg-white p-4 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-5 sm:mb-7">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="p-2.5 sm:p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                  <Sprout size={21} className="sm:w-6 sm:h-6" />
-                </div>
-
-                <div>
-                  <h2 className="font-display font-bold text-slate-800 text-base sm:text-lg">
-                    Crop Configuration
-                  </h2>
-
-                  <p className="text-xs text-slate-400 mt-1">
-                    Configure the crop used by Analytics.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSaveCrop}
-                disabled={savingCrop}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-sm font-bold hover:shadow-lg disabled:opacity-50"
-              >
-                {savingCrop ? (
-                  <Loader2 size={17} className="animate-spin" />
-                ) : (
-                  <Save size={17} />
-                )}
-
-                {cropSaved ? "Saved!" : savingCrop ? "Saving..." : "Save Crop"}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-              {/* CROP TYPE */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Crop Type
-                </label>
-
-                <select
-                  value={crop.type}
-                  onChange={(e) =>
-                    setCrop({
-                      ...crop,
-                      type: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500"
-                >
-                  <option value="Romaine Lettuce">Romaine Lettuce</option>
-
-                  <option value="Lettuce">Lettuce</option>
-
-                  <option value="Basil">Basil</option>
-
-                  <option value="Kang Kong">Kang Kong</option>
-
-                  <option value="Spinach">Spinach</option>
-
-                  <option value="Pak Choi">Pak Choi</option>
-                </select>
-              </div>
-
-              {/* PLANTING DATE */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Planting Date
-                </label>
-
-                <input
-                  type="date"
-                  value={crop.plantingDate}
-                  onChange={(e) =>
-                    setCrop({
-                      ...crop,
-                      plantingDate: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              {/* TARGET HARVEST */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Target Harvest Time (Days)
-                </label>
-
-                <input
-                  type="number"
-                  min="1"
-                  value={crop.targetHarvestDays}
-                  onChange={(e) =>
-                    setCrop({
-                      ...crop,
-                      targetHarvestDays: Number(e.target.value) || 1,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              {/* TARGET YIELD */}
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Target Yield (kg)
-                </label>
-
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={crop.targetYield}
-                  onChange={(e) =>
-                    setCrop({
-                      ...crop,
-                      targetYield: Number(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
-
-            {/* CURRENT AGE */}
-
-            <div className="mt-4 sm:mt-6 p-3 sm:p-5 rounded-xl sm:rounded-2xl bg-emerald-50 border border-emerald-100">
-              <div className="flex items-center gap-3">
-                <Calendar size={20} className="text-emerald-600" />
-
-                <div>
-                  <p className="text-sm font-bold text-emerald-800">
-                    Current Crop Age
-                  </p>
-
-                  <p className="text-xs text-emerald-600 mt-1">
-                    Your crop is currently <strong>{cropAge} days</strong> old.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* HARVEST AND NEW CROP CYCLE */}
-            <div className="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {/* HARVEST AND NEW CROP CYCLE */}
+          <div className="w-[94%] sm:w-[92%] lg:w-full mx-auto grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div className="p-4 sm:p-5 rounded-2xl border border-amber-200 bg-amber-50/70">
                 <div className="flex items-start gap-3 mb-4">
                   <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700">
                     <CheckCircle2 size={21} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-800">Harvest Lettuce</h3>
+                    <h3 className="font-bold text-slate-800">Harvest {crop.type}</h3>
                     <p className="text-xs text-slate-600 mt-1">
                       Save the completed crop cycle without deleting its growth records.
                     </p>
@@ -1821,8 +1491,32 @@ export default function GrowthManagement() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-2">Crop Type</label>
+                    <select value={newCycleCropType} onChange={(e) => setNewCycleCropType(e.target.value)}
+                      className="w-full px-3 py-3 bg-white border border-emerald-200 rounded-xl text-sm outline-none">
+                      <option value="Romaine Lettuce">Romaine Lettuce</option>
+                      <option value="Lettuce">Lettuce</option>
+                      <option value="Basil">Basil</option>
+                      <option value="Kang Kong">Kang Kong</option>
+                      <option value="Spinach">Spinach</option>
+                      <option value="Pak Choi">Pak Choi</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-xs font-bold text-slate-600 mb-2">New Planting Date</label>
                     <input type="date" value={newCycleDate} onChange={(e) => setNewCycleDate(e.target.value)}
+                      className="w-full px-3 py-3 bg-white border border-emerald-200 rounded-xl text-sm outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-2">Target Harvest Time (days)</label>
+                    <input type="number" min="1" step="1" value={newCycleTargetHarvestDays}
+                      onChange={(e) => setNewCycleTargetHarvestDays(e.target.value)}
+                      className="w-full px-3 py-3 bg-white border border-emerald-200 rounded-xl text-sm outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-2">Target Yield (kg)</label>
+                    <input type="number" min="0" step="0.1" value={newCycleTargetYield}
+                      onChange={(e) => setNewCycleTargetYield(e.target.value)}
                       className="w-full px-3 py-3 bg-white border border-emerald-200 rounded-xl text-sm outline-none" />
                   </div>
                   <div>
@@ -1874,24 +1568,21 @@ export default function GrowthManagement() {
               )}
             </div>
 
-            {/* LAST UPDATED */}
-
             <div className="mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100">
               <div className="flex items-center gap-3">
                 <Calendar size={19} className="text-slate-500" />
 
                 <div>
                   <p className="text-sm font-bold text-slate-700">
-                    Configuration Date
+                    Current Planting Date
                   </p>
 
                   <p className="text-xs text-slate-500 mt-1">
-                    {crop.date || "Not saved yet"}
+                    {crop.plantingDate || "Not set"}
                   </p>
                 </div>
               </div>
             </div>
-          </div>
 
           {/* CROP MEASUREMENTS */}
 

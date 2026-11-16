@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Mail\AlertNotification;
 use App\Models\Alert;
-use App\Models\IotDevice;
+use App\Models\AlertRecipient;
+use App\Models\User;
 use App\Models\UserPushToken;
 use DateTimeImmutable;
 use DateTimeZone;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -28,9 +30,22 @@ class AquanicsAlertService
         $configuration = $this->firebase->getConfiguration();
 
         if ($this->isDeviceOffline($current)) {
-            return [];
+            $alert = $this->createAlertIfNeeded(
+                'device',
+                null,
+                '',
+                'Monitoring Device Offline',
+                'The monitoring device has not reported for more than five minutes.',
+                null,
+                null,
+                'device',
+                'device:' . env('AQUANICS_DEVICE_ID', '8823-AF92-1102')
+            );
+
+            return $alert ? [$alert] : [];
         }
 
+        $this->resetActiveAlert('device');
         $results = [];
 
         foreach ($configuration as $sensor => $limit) {
@@ -177,51 +192,21 @@ class AquanicsAlertService
     }
 
     /**
-     * Create an alert if there is no active unread alert
-     * for the same sensor/user.
+     * Create or distribute one active alert event for the sensor.
      */
     protected function createAlertIfNeeded(
         string $sensor,
-        float $value,
+        ?float $value,
         string $unit,
         string $title,
         string $message,
         ?float $low,
-        ?float $high
+        ?float $high,
+        string $type = 'sensor',
+        ?string $activeKey = null
     ): ?Alert {
-        // ========================================================
-        // FIND DEVICE OWNER
-        // ========================================================
-
-        $deviceId = env(
-            'AQUANICS_DEVICE_ID',
-            '8823-AF92-1102'
-        );
-
-        $device = IotDevice::with('user')
-            ->where('device_id', $deviceId)
-            ->first();
-
-        if (!$device || !$device->user) {
-            Log::error(
-                'Aquanics alert could not determine device owner.',
-                [
-                    'device_id' => $deviceId,
-                    'sensor' => $sensor,
-                ]
-            );
-
-            return null;
-        }
-
-        $user = $device->user;
-
-        // ========================================================
-        // ANTI-SPAM
-        // ========================================================
-
+        $activeKey ??= "sensor:{$sensor}";
         $existing = Alert::query()
-            ->where('user_id', $user->id)
             ->where('sensor', $sensor)
             ->where('severity', 'critical')
             ->whereNull('resolved_at')
@@ -229,12 +214,9 @@ class AquanicsAlertService
             ->first();
 
         if ($existing) {
+            $this->distributeAlert($existing);
             return null;
         }
-
-        // ========================================================
-        // RANGE MESSAGE
-        // ========================================================
 
         $rangeMessage = '';
 
@@ -249,107 +231,118 @@ class AquanicsAlertService
                 " Configured maximum: {$high} {$unit}.";
         }
 
-        // ========================================================
-        // CREATE ALERT
-        // ========================================================
+        try {
+            $alert = Alert::create([
+                'user_id' => null,
+                'type' => $type,
 
-        $alert = Alert::create([
-            'user_id' => $user->id,
+                'severity' => 'critical',
 
-            'type' => 'sensor',
+                'title' => $title,
 
-            'severity' => 'critical',
+                'message' =>
+                    $message .
+                    ($value !== null ? " Current value: {$value} {$unit}." : '') .
+                    $rangeMessage,
 
-            'title' => $title,
+                'sensor' => $sensor,
 
-            'message' =>
-            $message .
-                " Current value: {$value} {$unit}." .
-                $rangeMessage,
+                'value' => $value,
 
-            'sensor' => $sensor,
+                'unit' => $unit,
 
-            'value' => $value,
+                'route' => '/alerts',
 
-            'unit' => $unit,
+                'is_read' => false,
 
-            'route' => '/alerts',
+                'email_sent' => false,
 
-            'is_read' => false,
+                'sms_sent' => false,
 
-            'email_sent' => false,
+                'push_sent' => false,
+                'active_key' => $activeKey,
+            ]);
+        } catch (QueryException $exception) {
+            $existing = Alert::query()
+                ->where('active_key', $activeKey)
+                ->first();
 
-            'sms_sent' => false,
-
-            'push_sent' => false,
-        ]);
-
-        // ========================================================
-        // EMAIL NOTIFICATION
-        // ========================================================
-
-        if (
-            $user->email_alerts &&
-            !empty($user->email)
-        ) {
-            try {
-                Mail::to($user->email)->send(
-                    new AlertNotification($alert)
-                );
-
-                $alert->update([
-                    'email_sent' => true,
-                ]);
-
-                Log::info(
-                    'Aquanics email alert sent.',
-                    [
-                        'alert_id' => $alert->id,
-                        'user_id' => $user->id,
-                        'email' => $user->email,
-                    ]
-                );
-            } catch (\Throwable $e) {
-                Log::error(
-                    'Aquanics email alert failed.',
-                    [
-                        'alert_id' => $alert->id,
-                        'user_id' => $user->id,
-                        'email' => $user->email,
-                        'error' => $e->getMessage(),
-                    ]
-                );
+            if (!$existing) {
+                throw $exception;
             }
+
+            $this->distributeAlert($existing);
+
+            return null;
         }
 
-        // ========================================================
-        // SMS
-        // ========================================================
-
-        if (
-            $user->sms_alerts &&
-            !empty($user->phone)
-        ) {
-            Log::info(
-                'Aquanics SMS notification pending provider setup.',
-                [
-                    'alert_id' => $alert->id,
-                    'user_id' => $user->id,
-                    'phone' => $user->phone,
-                ]
-            );
-        }
-
-        // ========================================================
-        // PUSH NOTIFICATION
-        // ========================================================
-
-        $this->sendPushNotifications(
-            $user->id,
-            $alert
-        );
+        $this->distributeAlert($alert);
 
         return $alert;
+    }
+
+    private function distributeAlert(Alert $alert): void
+    {
+        User::query()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->chunkById(100, function ($users) use ($alert): void {
+                foreach ($users as $user) {
+                    $recipientIdentity = [
+                        'alert_id' => $alert->id,
+                        'user_id' => $user->id,
+                    ];
+
+                    try {
+                        $recipient = AlertRecipient::firstOrCreate(
+                            $recipientIdentity,
+                            [
+                                'is_read' => false,
+                                'email_sent' => false,
+                                'sms_sent' => false,
+                                'push_sent' => false,
+                            ]
+                        );
+                    } catch (QueryException $exception) {
+                        $recipient = AlertRecipient::query()
+                            ->where($recipientIdentity)
+                            ->first();
+
+                        if (!$recipient) {
+                            throw $exception;
+                        }
+                    }
+
+                    if (!$recipient->wasRecentlyCreated) {
+                        continue;
+                    }
+
+                    if ($user->email_alerts && $user->email) {
+                        try {
+                            Mail::to($user->email)->send(
+                                new AlertNotification($alert)
+                            );
+                            $recipient->update(['email_sent' => true]);
+                            $alert->update(['email_sent' => true]);
+                        } catch (\Throwable $e) {
+                            Log::error('Aquanics email alert failed.', [
+                                'alert_id' => $alert->id,
+                                'user_id' => $user->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    }
+
+                    if ($user->sms_alerts && $user->phone) {
+                        Log::info('Aquanics SMS notification pending provider setup.', [
+                            'alert_id' => $alert->id,
+                            'user_id' => $user->id,
+                        ]);
+                    }
+
+                    $this->sendPushNotifications($user->id, $alert, $recipient);
+                }
+            });
     }
 
     /**
@@ -358,7 +351,8 @@ class AquanicsAlertService
      */
     protected function sendPushNotifications(
         int $userId,
-        Alert $alert
+        Alert $alert,
+        AlertRecipient $recipient
     ): void {
         // ========================================================
         // FIND USER TOKENS
@@ -453,36 +447,26 @@ class AquanicsAlertService
         // ========================================================
 
         if ($sent) {
-            $alert->update([
+            $recipient->update([
                 'push_sent' => true,
             ]);
+            $alert->update(['push_sent' => true]);
         }
     }
 
     /**
-     * Mark active alert as read when the sensor
-     * returns to its normal range.
+     * Resolve active alerts without changing each recipient's read state.
      */
     protected function resetActiveAlert(
         string $sensor
     ): void {
-        $deviceId = env('AQUANICS_DEVICE_ID', '8823-AF92-1102');
-        $userId = IotDevice::query()
-            ->where('device_id', $deviceId)
-            ->value('user_id');
-
-        if (!$userId) {
-            return;
-        }
-
         Alert::query()
-            ->where('user_id', $userId)
             ->where('sensor', $sensor)
             ->where('severity', 'critical')
             ->whereNull('resolved_at')
             ->update([
-                'is_read' => true,
                 'resolved_at' => now(),
+                'active_key' => null,
             ]);
     }
 }

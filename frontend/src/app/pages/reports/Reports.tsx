@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
   FileText,
@@ -158,7 +158,6 @@ interface GeneratedReport {
   type: ReportFormat;
   reportType: ReportType;
   date_label: string;
-  size: string;
   data: ReportData;
 }
 
@@ -226,7 +225,7 @@ function parseFirebaseNumber(value: unknown): number | null {
     return value;
   }
 
-  if (typeof value === "string") {
+  if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value);
 
     if (Number.isFinite(parsed)) {
@@ -254,29 +253,32 @@ function parseFirebaseString(value: unknown): string {
 // ============================================================
 
 function getTodayString() {
-  const now = new Date();
+  const dateParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const parts = Object.fromEntries(
+    dateParts.map(({ type, value }) => [type, value]),
+  );
 
-  const year = now.getFullYear();
-
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-
-  const day = String(now.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function addDays(dateString: string, amount: number) {
-  const date = new Date(`${dateString}T00:00:00`);
+  const date = new Date(`${dateString}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
 
-  date.setDate(date.getDate() + amount);
+function isValidDateString(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
 
-  const year = date.getFullYear();
-
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function getDatesBetween(startDate: string, endDate: string) {
@@ -375,26 +377,30 @@ async function fetchSensorDataForDate(date: string): Promise<SensorReading[]> {
 
   const sortedTimes = Array.from(timestamps).sort();
 
-  return sortedTimes.map((time) => ({
-    date,
-    time,
+  return sortedTimes
+    .map((time) => ({
+      date,
+      time,
 
-    ph: parseFirebaseNumber(sensorResults.ph?.[time]),
+      ph: parseFirebaseNumber(sensorResults.ph?.[time]),
 
-    phVoltage: parseFirebaseNumber(sensorResults.phVoltage?.[time]),
+      phVoltage: parseFirebaseNumber(sensorResults.phVoltage?.[time]),
 
-    waterTemp: parseFirebaseNumber(sensorResults.waterTemp?.[time]),
+      waterTemp: parseFirebaseNumber(sensorResults.waterTemp?.[time]),
 
-    waterLevel: parseFirebaseNumber(sensorResults.waterLevel?.[time]),
+      waterLevel: parseFirebaseNumber(sensorResults.waterLevel?.[time]),
 
-    waterPercent: parseFirebaseNumber(sensorResults.waterPercent?.[time]),
+      waterPercent: parseFirebaseNumber(sensorResults.waterPercent?.[time]),
 
-    distance: parseFirebaseNumber(sensorResults.distance?.[time]),
+      distance: parseFirebaseNumber(sensorResults.distance?.[time]),
 
-    batteryVoltage: parseFirebaseNumber(sensorResults.batteryVoltage?.[time]),
+      batteryVoltage: parseFirebaseNumber(sensorResults.batteryVoltage?.[time]),
 
-    currentDraw: parseFirebaseNumber(sensorResults.currentDraw?.[time]),
-  }));
+      currentDraw: parseFirebaseNumber(sensorResults.currentDraw?.[time]),
+    }))
+    .filter((reading) =>
+      SENSOR_NAMES.some((sensorName) => reading[sensorName] !== null),
+    );
 }
 
 // ============================================================
@@ -1610,6 +1616,7 @@ export default function Reports() {
   // ==========================================================
 
   const [reports, setReports] = useState<GeneratedReport[]>([]);
+  const loadSequence = useRef(0);
 
   // ==========================================================
   // ACTIVE DATES
@@ -1618,29 +1625,42 @@ export default function Reports() {
   const activeStartDate = dateMode === "single" ? selectedDate : startDate;
 
   const activeEndDate = dateMode === "single" ? selectedDate : endDate;
+  const hasCurrentReportData =
+    reportData?.reportType === reportType &&
+    reportData.startDate === activeStartDate &&
+    reportData.endDate === activeEndDate;
+
+  const selectRecentRange = (days: number) => {
+    const end = getTodayString();
+    setDateMode("range");
+    setStartDate(addDays(end, 1 - days));
+    setEndDate(end);
+  };
 
   // ==========================================================
   // LOAD FIREBASE DATA
   // ==========================================================
 
   const loadReportData = async () => {
+    const sequence = ++loadSequence.current;
     setError(null);
+    setReportData(null);
 
-    if (!activeStartDate) {
+    if (!isValidDateString(activeStartDate)) {
       setError("Please select a start date.");
-
+      setLoading(false);
       return;
     }
 
-    if (!activeEndDate) {
+    if (!isValidDateString(activeEndDate)) {
       setError("Please select an end date.");
-
+      setLoading(false);
       return;
     }
 
     if (activeStartDate > activeEndDate) {
       setError("The end date cannot be earlier than the start date.");
-
+      setLoading(false);
       return;
     }
 
@@ -1653,15 +1673,18 @@ export default function Reports() {
         activeEndDate,
       );
 
-      setReportData(data);
+      if (sequence === loadSequence.current) {
+        setReportData(data);
+      }
     } catch (err: any) {
-      console.error("Failed to fetch Firebase report data:", err);
-
-      setError(err?.message || "Unable to fetch data from Firebase.");
-
-      setReportData(null);
+      if (sequence === loadSequence.current) {
+        console.error("Failed to fetch Firebase report data:", err);
+        setError(err?.message || "Unable to fetch data from Firebase.");
+      }
     } finally {
-      setLoading(false);
+      if (sequence === loadSequence.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -1670,11 +1693,10 @@ export default function Reports() {
   // ==========================================================
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadReportData();
-    }, 150);
-
-    return () => clearTimeout(timer);
+    void loadReportData();
+    return () => {
+      loadSequence.current += 1;
+    };
   }, [reportType, dateMode, selectedDate, startDate, endDate]);
 
   // ==========================================================
@@ -1685,6 +1707,10 @@ export default function Reports() {
     if (!reportData) {
       setError("There is no report data available for the selected period.");
 
+      return;
+    }
+    if (!hasCurrentReportData) {
+      setError("Wait for the selected report period to finish loading.");
       return;
     }
 
@@ -1724,14 +1750,21 @@ export default function Reports() {
 
       date_label: dateLabel,
 
-      size: "Generated locally",
-
       data: reportData,
     };
 
-    setReports((previous) => [report, ...previous]);
-
-    downloadReportFile(report, generateFormat);
+    try {
+      downloadReportFile(report, generateFormat);
+      setReports((previous) => [report, ...previous]);
+      setError(null);
+    } catch (exportError: unknown) {
+      console.error("Failed to generate report file:", exportError);
+      setError(
+        exportError instanceof Error
+          ? `Unable to generate the ${generateFormat} report: ${exportError.message}`
+          : `Unable to generate the ${generateFormat} report.`,
+      );
+    }
   };
 
   // ==========================================================
@@ -1749,9 +1782,18 @@ export default function Reports() {
       return;
     }
 
-    downloadReportFile(downloadTarget, downloadFormat);
-
-    setDownloadTarget(null);
+    try {
+      downloadReportFile(downloadTarget, downloadFormat);
+      setDownloadTarget(null);
+      setError(null);
+    } catch (exportError: unknown) {
+      console.error("Failed to download report file:", exportError);
+      setError(
+        exportError instanceof Error
+          ? `Unable to download the ${downloadFormat} report: ${exportError.message}`
+          : `Unable to download the ${downloadFormat} report.`,
+      );
+    }
   };
 
   // ==========================================================
@@ -1956,7 +1998,7 @@ export default function Reports() {
           HEADER
       ====================================================== */}
 
-      <div className="w-[94%] sm:w-[92%] lg:w-full mx-auto flex flex-col gap-4 sm:gap-5">
+      <div className="w-full mx-auto flex flex-col gap-4 sm:gap-5">
         <div>
           <h1 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 leading-tight">
             Reports
@@ -1967,14 +2009,40 @@ export default function Reports() {
           </p>
         </div>
 
+        <ol
+          aria-label="Report creation steps"
+          className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:gap-3 sm:p-4"
+        >
+          {[
+            ["1", "Choose data"],
+            ["2", "Set period"],
+            ["3", "Generate"],
+          ].map(([step, label]) => (
+            <li
+              key={step}
+              className="flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-600 sm:text-sm"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                {step}
+              </span>
+              <span className="truncate">{label}</span>
+            </li>
+          ))}
+        </ol>
+
         {/* ====================================================
             REPORT TYPE
         ==================================================== */}
 
         <div className="w-full bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-5 shadow-sm">
-          <label className="block text-xs font-bold text-slate-500 mb-2">
-            Report subject
-          </label>
+          <div className="mb-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+              Step 1
+            </p>
+            <label className="mt-1 block text-sm font-bold text-slate-700">
+              Choose report subject
+            </label>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* SENSORS */}
@@ -2111,6 +2179,14 @@ export default function Reports() {
         ==================================================== */}
 
         <div className="w-full bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-5 shadow-sm">
+          <div className="mb-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+              Step 2
+            </p>
+            <p className="mt-1 text-sm font-bold text-slate-700">
+              Choose a date or period
+            </p>
+          </div>
           <div className="flex flex-col lg:flex-row lg:items-end gap-5">
             {/* DATE MODE */}
 
@@ -2164,6 +2240,7 @@ export default function Reports() {
 
                   <input
                     type="date"
+                    max={today}
                     value={selectedDate}
                     onChange={(event) => setSelectedDate(event.target.value)}
                     className="w-full sm:w-auto pl-10 pr-3 sm:pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
@@ -2188,8 +2265,15 @@ export default function Reports() {
 
                   <input
                     type="date"
+                    max={today}
                     value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
+                    onChange={(event) => {
+                      const nextStartDate = event.target.value;
+                      setStartDate(nextStartDate);
+                      if (nextStartDate > endDate) {
+                        setEndDate(nextStartDate);
+                      }
+                    }}
                     className="w-full sm:w-auto pl-10 pr-3 sm:pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>
@@ -2213,6 +2297,7 @@ export default function Reports() {
                   <input
                     type="date"
                     min={startDate}
+                    max={today}
                     value={endDate}
                     onChange={(event) => setEndDate(event.target.value)}
                     className="w-full sm:w-auto pl-10 pr-3 sm:pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
@@ -2220,6 +2305,22 @@ export default function Reports() {
                 </div>
               </div>
             )}
+
+            <div className="flex flex-wrap items-end gap-2">
+              <span className="w-full text-xs font-bold text-slate-500">
+                Quick range
+              </span>
+              {[7, 30].map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => selectRecentRange(days)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  Last {days} days
+                </button>
+              ))}
+            </div>
 
             {/* REFRESH */}
 
@@ -2263,15 +2364,23 @@ export default function Reports() {
             GENERATE CONTROLS
         ==================================================== */}
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:p-0 sm:border-0 sm:bg-transparent">
+          <div className="w-full sm:w-auto sm:mr-auto">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+              Step 3
+            </p>
+            <p className="mt-1 text-sm font-bold text-slate-700">
+              Prepare your report
+            </p>
+          </div>
           {/* FILTER */}
 
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setIsFilterMenuOpen((previous) => !previous)}
               className={cn(
-                "px-4 py-2.5 bg-white border rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-all",
+                "w-full sm:w-auto px-4 py-2.5 bg-white border rounded-xl text-sm font-bold shadow-sm flex items-center justify-center gap-2 transition-all",
                 filterType
                   ? "border-emerald-300 text-emerald-700 bg-emerald-50"
                   : "border-slate-200 text-slate-600 hover:bg-slate-50",
@@ -2279,11 +2388,11 @@ export default function Reports() {
             >
               <Filter size={16} />
 
-              {filterType || "Filter Reports"}
+              {filterType || "Filter generated"}
             </button>
 
             {isFilterMenuOpen && (
-              <div className="absolute left-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl sm:w-44">
                 {(["PDF", "CSV"] as ReportFormat[]).map((format) => (
                   <button
                     key={format}
@@ -2316,17 +2425,20 @@ export default function Reports() {
               </div>
             )}
           </div>
+          <p className="text-xs leading-relaxed text-slate-500 sm:max-w-48">
+            This filter applies to the generated-files list, not the source data.
+          </p>
 
           {/* FORMAT */}
 
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+          <div className="flex w-full items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:w-auto">
             {(["PDF", "CSV"] as ReportFormat[]).map((format) => (
               <button
                 key={format}
                 type="button"
                 onClick={() => setGenerateFormat(format)}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-bold transition-all",
+                  "flex-1 rounded-lg px-3 py-2 text-xs font-bold transition-all sm:flex-none sm:py-1.5",
                   generateFormat === format
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-700",
@@ -2341,9 +2453,9 @@ export default function Reports() {
 
           <button
             type="button"
-            disabled={loading || !reportData}
+            disabled={loading || !hasCurrentReportData}
             onClick={handleGenerate}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {loading ? (
               <>
@@ -2855,7 +2967,7 @@ export default function Reports() {
       ====================================================== */}
 
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
               Generated Reports

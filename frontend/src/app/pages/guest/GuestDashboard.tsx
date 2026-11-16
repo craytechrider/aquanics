@@ -31,8 +31,10 @@ import {
 import { onValue, ref } from "firebase/database";
 import { db } from "../../../firebase";
 import { useAquaponicsData } from "../../../hooks/useAquaponicsData";
-
-type HistoryRecord = Record<string, Record<string, number>>;
+import {
+  formatSensorHistoryLabel,
+  readSensorHistory,
+} from "../../lib/sensorHistory";
 
 type ChartPoint = {
   time: string;
@@ -115,40 +117,6 @@ function formatValue(value: number | null, key: string): string {
   return value.toFixed(1);
 }
 
-function formatTimestamp(value: string): string {
-  const parts = value.split(" ");
-  return parts.length > 1 ? parts[1].slice(0, 5) : value;
-}
-
-function readHistory(
-  history: HistoryRecord | null | undefined,
-  rangeHours: number,
-) {
-  if (!history || typeof history !== "object") return [];
-
-  const cutoff = Date.now() - rangeHours * 60 * 60 * 1000;
-  const points: { time: string; value: number }[] = [];
-
-  for (const date of Object.keys(history).sort()) {
-    const readings = history[date];
-    if (!readings || typeof readings !== "object") continue;
-
-    for (const time of Object.keys(readings).sort()) {
-      const value = numericValue(readings[time]);
-      if (value === null) continue;
-
-      const timestamp = new Date(
-        `${date}T${time.replace(/-/g, ":")}`,
-      ).getTime();
-      if (!Number.isFinite(timestamp) || timestamp < cutoff) continue;
-
-      points.push({ time: `${date} ${time}`, value });
-    }
-  }
-
-  return points.slice(-500);
-}
-
 export default function GuestDashboard() {
   const { data, loading, error } = useAquaponicsData();
 
@@ -215,10 +183,7 @@ export default function GuestDashboard() {
       onValue(
         ref(db, `sensors/${key}`),
         (snapshot) => {
-          histories[key] = readHistory(
-            snapshot.val() as HistoryRecord | undefined,
-            rangeHours,
-          );
+          histories[key] = readSensorHistory(snapshot.val(), rangeHours);
           rebuildChart();
         },
         (firebaseError) => {
@@ -647,9 +612,16 @@ export default function GuestDashboard() {
                   <option value={24}>Last 24 hours</option>
                   <option value={72}>Last 3 days</option>
                   <option value={168}>Last 7 days</option>
+                  <option value={720}>Last 30 days</option>
                 </select>
               </label>
             </div>
+            {rangeHours === 720 && (
+              <p className="px-5 pt-3 text-xs text-slate-400 sm:px-7">
+                Daily averages use recorded readings only; dates without stored
+                history are not filled in.
+              </p>
+            )}
 
             <div className="flex flex-wrap gap-2 px-5 pt-5 sm:px-7">
               {[
@@ -798,7 +770,7 @@ export default function GuestDashboard() {
                       axisLine={false}
                       tickLine={false}
                       tick={{ fontSize: 10, fill: "#94a3b8" }}
-                      tickFormatter={formatTimestamp}
+                      tickFormatter={formatSensorHistoryLabel}
                       minTickGap={28}
                     />
 

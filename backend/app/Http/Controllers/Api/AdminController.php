@@ -321,7 +321,7 @@ class AdminController extends Controller
 
     public function sensors(Request $request)
     {
-        $query = Sensor::with('user:id,name');
+        $query = Sensor::query();
 
         if ($search = $request->input('search')) {
             $query->where('name', 'like', "%{$search}%");
@@ -331,8 +331,11 @@ class AdminController extends Controller
             $query->where('status', $status);
         }
 
-        $sensors = $query->latest()
+        $sensors = $query->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->get()
+            ->unique('key')
+            ->values()
             ->map(fn($s) => [
                 'id'     => $s->id,
                 'key'    => $s->key,
@@ -341,7 +344,6 @@ class AdminController extends Controller
                 'unit'   => $s->unit,
                 'status' => $s->status,
                 'trend'  => $s->trend,
-                'user'   => $s->user->name ?? 'N/A',
                 'userId' => $s->user_id,
             ]);
 
@@ -442,24 +444,32 @@ class AdminController extends Controller
 
     public function alerts(Request $request)
     {
-        $query = Alert::with('user:id,name');
+        $query = Alert::query();
 
         if ($severity = $request->input('severity')) {
             $query->where('severity', $severity);
         }
 
-        $alerts = $query->latest()
+        $alerts = $query
+            ->withCount([
+                'recipients',
+                'recipients as unread_recipients_count' => fn ($recipients) => $recipients
+                    ->where('is_read', false),
+            ])
+            ->latest()
             ->take(50)
             ->get()
             ->map(fn($a) => [
                 'id'       => $a->id,
                 'title'    => $a->title,
                 'message'  => $a->message,
+                'type'     => $a->type,
                 'severity' => $a->severity,
-                'user'     => $a->user->name ?? 'Unknown',
                 'userId'   => $a->user_id,
-                'time'     => $a->created_at->diffForHumans(),
-                'read'     => $a->is_read,
+                'time'     => $a->created_at?->format('M d, Y H:i') ?? '-',
+                'recipientCount' => $a->recipients_count,
+                'unreadRecipients' => $a->unread_recipients_count,
+                'read' => $a->recipients_count > 0 && $a->unread_recipients_count === 0,
             ]);
 
         return response()->json($alerts);

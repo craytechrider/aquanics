@@ -16,16 +16,18 @@ class ReportController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string',
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'date_label' => 'required|string|max:255',
+            'size' => 'sometimes|string|max:32',
             'type' => 'sometimes|string|in:PDF,CSV',
         ]);
 
         $report = $request->user()->reports()->create([
-            'name' => $request->name,
-            'date_label' => now()->format('M Y'),
-            'size' => '0.1 MB',
-            'type' => $request->type ?? 'PDF',
+            'name' => $validated['name'],
+            'date_label' => $validated['date_label'],
+            'size' => $validated['size'] ?? '0 MB',
+            'type' => $validated['type'] ?? 'PDF',
         ]);
 
         return response()->json($report, 201);

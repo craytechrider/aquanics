@@ -78,16 +78,6 @@ export default function Automation() {
   const [savingSchedule, setSavingSchedule] = useState(false);
 
   /* =======================================================
-     FISH DETAILS
-  ======================================================= */
-
-  const [fishSpecies, setFishSpecies] = useState("Tilapia");
-
-  const [fishAge, setFishAge] = useState(12);
-
-  const [fishSaving, setFishSaving] = useState(false);
-
-  /* =======================================================
      LOAD FIREBASE DATA
   ======================================================= */
 
@@ -346,34 +336,6 @@ export default function Automation() {
   };
 
   /* =======================================================
-     SAVE FISH DETAILS
-  ======================================================= */
-
-  const handleSaveFishDetails = async () => {
-    setFishSaving(true);
-
-    try {
-      const updates: Record<string, any> = {};
-
-      schedules.forEach((schedule) => {
-        updates[`schedules/${schedule.id}/species`] = fishSpecies;
-
-        updates[`schedules/${schedule.id}/fish_age_weeks`] = fishAge;
-      });
-
-      if (schedules.length > 0) {
-        await update(ref(db), updates);
-      }
-    } catch (error) {
-      console.error("Failed to save fish details:", error);
-    } finally {
-      setTimeout(() => {
-        setFishSaving(false);
-      }, 800);
-    }
-  };
-
-  /* =======================================================
      LOADING
   ======================================================= */
 
@@ -510,61 +472,6 @@ export default function Automation() {
               ))
             )}
 
-            {/* FISH DETAILS */}
-
-            <div className="p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-sm font-bold text-slate-800">
-                  Fish Details
-                </span>
-
-                <button
-                  onClick={handleSaveFishDetails}
-                  disabled={fishSaving}
-                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <Save size={14} />
-
-                  {fishSaving ? "Saved!" : "Save"}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">
-                    Species
-                  </label>
-
-                  <select
-                    value={fishSpecies}
-                    onChange={(e) => setFishSpecies(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400"
-                  >
-                    <option value="Tilapia">Tilapia</option>
-
-                    <option value="Catfish">Catfish</option>
-
-                    <option value="Trout">Trout</option>
-
-                    <option value="Koi">Koi</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">
-                    Age (Weeks)
-                  </label>
-
-                  <input
-                    type="number"
-                    min="0"
-                    value={fishAge}
-                    onChange={(e) => setFishAge(Number(e.target.value) || 0)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400"
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

@@ -17,6 +17,7 @@ import {
 import { cn } from "../lib/utils";
 import logo from "../../assets/bf2f001026d6edc1e3beec70ce5240dc1734a24f.png";
 import { useAuth } from "../contexts/AuthContext";
+import { NotificationBell } from "../components/layout/NotificationBell";
 
 const ADMIN_NAV = [
   { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
@@ -183,6 +184,11 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <NotificationBell
+              dashboardPath="/admin/dashboard"
+              sensorPath="/admin/sensors"
+              theme="light"
+            />
             <span className="hidden text-sm font-medium text-slate-600 sm:block">
               {user?.name || "Admin User"}
             </span>
